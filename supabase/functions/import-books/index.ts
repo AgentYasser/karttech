@@ -16,6 +16,17 @@ const TIMELESS_AUTHORS = {
     { name: "Fyodor Dostoevsky", gutenberg_search: "dostoevsky" },
     { name: "Leo Tolstoy", gutenberg_search: "tolstoy" },
   ],
+  modern_classics: [
+    { name: "George Orwell", gutenberg_search: "orwell" },
+    { name: "Franz Kafka", gutenberg_search: "kafka" },
+    { name: "Aldous Huxley", gutenberg_search: "huxley" },
+    { name: "John Kennedy Toole", gutenberg_search: "toole" },
+    { name: "Albert Camus", gutenberg_search: "camus" },
+    { name: "Virginia Woolf", gutenberg_search: "woolf" },
+    { name: "James Joyce", gutenberg_search: "joyce" },
+    { name: "F. Scott Fitzgerald", gutenberg_search: "fitzgerald" },
+    { name: "Ernest Hemingway", gutenberg_search: "hemingway" },
+  ],
   drama_poetry: [
     { name: "William Shakespeare", gutenberg_search: "shakespeare" },
     { name: "Homer", gutenberg_search: "homer" },
