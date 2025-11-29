@@ -9,11 +9,13 @@ import {
   X,
   Volume2,
   Loader2,
+  Download,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { useBook, useBookChapters } from "@/hooks/useBooks";
 import { useReadingSession, useUpsertReadingSession } from "@/hooks/useReadingSession";
+import { useFetchBookContent } from "@/hooks/useImportBooks";
 
 const ReadingPage = () => {
   const { bookId } = useParams();
@@ -22,9 +24,10 @@ const ReadingPage = () => {
   const [currentChapterIndex, setCurrentChapterIndex] = useState(0);
 
   const { data: book, isLoading: bookLoading } = useBook(bookId);
-  const { data: chapters, isLoading: chaptersLoading } = useBookChapters(bookId);
+  const { data: chapters, isLoading: chaptersLoading, refetch: refetchChapters } = useBookChapters(bookId);
   const { data: session } = useReadingSession(bookId);
   const upsertSession = useUpsertReadingSession();
+  const fetchContent = useFetchBookContent();
 
   // Set initial chapter from session
   useEffect(() => {
@@ -65,6 +68,16 @@ const ReadingPage = () => {
     if (currentChapterIndex > 0) {
       setCurrentChapterIndex(currentChapterIndex - 1);
     }
+  };
+
+  const handleImportContent = async () => {
+    if (!book || !book.gutenberg_id || !bookId) return;
+    
+    await fetchContent.mutateAsync({
+      gutenberg_id: book.gutenberg_id,
+      book_id: bookId,
+    });
+    refetchChapters();
   };
 
   if (bookLoading || chaptersLoading) {
@@ -154,11 +167,36 @@ const ReadingPage = () => {
             ))}
           </div>
         ) : (
-          <div className="text-center py-12 text-muted-foreground">
-            <p>No content available for this chapter yet.</p>
-            <p className="text-sm mt-2">
-              Content from Project Gutenberg will be loaded here.
-            </p>
+          <div className="text-center py-12">
+            <p className="text-muted-foreground">No content available for this book yet.</p>
+            {book.gutenberg_id ? (
+              <div className="mt-4">
+                <p className="text-sm text-muted-foreground mb-3">
+                  This book is available on Project Gutenberg.
+                </p>
+                <Button 
+                  onClick={handleImportContent}
+                  disabled={fetchContent.isPending}
+                  className="gap-2"
+                >
+                  {fetchContent.isPending ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Importing...
+                    </>
+                  ) : (
+                    <>
+                      <Download className="w-4 h-4" />
+                      Import from Gutenberg
+                    </>
+                  )}
+                </Button>
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground mt-2">
+                This book doesn't have content available yet.
+              </p>
+            )}
           </div>
         )}
       </main>
