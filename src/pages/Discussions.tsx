@@ -1,19 +1,20 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { MessageCircle, ThumbsUp, Mic, Plus, Filter } from "lucide-react";
+import { MessageCircle, ThumbsUp, Mic, Plus, Loader2 } from "lucide-react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { mockDiscussions, mockBooks } from "@/data/mockData";
+import { useDiscussions } from "@/hooks/useDiscussions";
 import { cn } from "@/lib/utils";
 
 const Discussions = () => {
   const [filter, setFilter] = useState<"all" | "solo" | "group" | "communal">("all");
+  const { data: discussions, isLoading } = useDiscussions();
 
-  const filteredDiscussions =
-    filter === "all"
-      ? mockDiscussions
-      : mockDiscussions.filter((d) => d.discussionType === filter);
+  const filteredDiscussions = discussions
+    ? filter === "all"
+      ? discussions
+      : discussions.filter((d) => d.discussion_type === filter)
+    : [];
 
   return (
     <MainLayout>
@@ -50,80 +51,74 @@ const Discussions = () => {
           ))}
         </div>
 
-        {/* Discussions List */}
-        <div className="space-y-4">
-          {filteredDiscussions.map((discussion, index) => {
-            const book = mockBooks.find((b) => b.id === discussion.bookId);
-
-            return (
-              <Link
-                key={discussion.id}
-                to={`/discussions/${discussion.id}`}
-                className={cn(
-                  "block bg-card rounded-xl p-5 border border-border shadow-soft hover:shadow-card transition-all duration-300 animate-fade-up",
-                  index === 1 && "animation-delay-100",
-                  index === 2 && "animation-delay-200"
-                )}
-              >
-                <div className="flex items-start gap-4">
-                  <div
-                    className={cn(
-                      "w-12 h-12 rounded-xl flex items-center justify-center text-xl shrink-0",
-                      discussion.discussionType === "solo" && "bg-primary",
-                      discussion.discussionType === "group" && "bg-secondary",
-                      discussion.discussionType === "communal" && "bg-amber-100"
-                    )}
-                  >
-                    {discussion.hasAudio ? "🎙️" : "💬"}
-                  </div>
-
-                  <div className="flex-1 min-w-0">
-                    <h3 className="font-medium text-card-foreground line-clamp-2">
-                      {discussion.title}
-                    </h3>
-                    <p className="text-sm text-muted-foreground mt-1">
-                      {book?.title} • by {discussion.authorUsername}
-                    </p>
-
-                    <div className="flex items-center gap-4 mt-3 text-xs text-muted-foreground">
-                      <span className="flex items-center gap-1">
-                        <ThumbsUp className="w-3.5 h-3.5" />
-                        {discussion.upvotes}
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <MessageCircle className="w-3.5 h-3.5" />
-                        {discussion.messageCount}
-                      </span>
-                      {discussion.hasAudio && (
-                        <span className="flex items-center gap-1 text-green-600">
-                          <Mic className="w-3.5 h-3.5" />
-                          Audio
-                        </span>
+        {isLoading ? (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+          </div>
+        ) : (
+          <>
+            {/* Discussions List */}
+            <div className="space-y-4">
+              {filteredDiscussions.map((discussion, index) => (
+                <Link
+                  key={discussion.id}
+                  to={`/discussions/${discussion.id}`}
+                  className={cn(
+                    "block bg-card rounded-xl p-5 border border-border shadow-soft hover:shadow-card transition-all duration-300 animate-fade-up",
+                    index === 1 && "animation-delay-100",
+                    index === 2 && "animation-delay-200"
+                  )}
+                >
+                  <div className="flex items-start gap-4">
+                    <div
+                      className={cn(
+                        "w-12 h-12 rounded-xl flex items-center justify-center text-xl shrink-0",
+                        discussion.discussion_type === "solo" && "bg-primary",
+                        discussion.discussion_type === "group" && "bg-secondary",
+                        discussion.discussion_type === "communal" && "bg-amber-100"
                       )}
-                      <span
-                        className={cn(
-                          "capitalize px-2 py-0.5 rounded-full",
-                          discussion.discussionType === "solo" && "bg-primary",
-                          discussion.discussionType === "group" && "bg-secondary",
-                          discussion.discussionType === "communal" && "bg-amber-100 text-amber-800"
-                        )}
-                      >
-                        {discussion.discussionType}
-                      </span>
+                    >
+                      💬
+                    </div>
+
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-medium text-card-foreground line-clamp-2">
+                        {discussion.title}
+                      </h3>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        {discussion.books?.title} • by {discussion.profiles?.username}
+                      </p>
+
+                      <div className="flex items-center gap-4 mt-3 text-xs text-muted-foreground">
+                        <span className="flex items-center gap-1">
+                          <ThumbsUp className="w-3.5 h-3.5" />
+                          {discussion.upvotes}
+                        </span>
+                        <span
+                          className={cn(
+                            "capitalize px-2 py-0.5 rounded-full",
+                            discussion.discussion_type === "solo" && "bg-primary",
+                            discussion.discussion_type === "group" && "bg-secondary",
+                            discussion.discussion_type === "communal" && "bg-amber-100 text-amber-800"
+                          )}
+                        >
+                          {discussion.discussion_type}
+                        </span>
+                      </div>
                     </div>
                   </div>
-                </div>
-              </Link>
-            );
-          })}
-        </div>
+                </Link>
+              ))}
+            </div>
 
-        {filteredDiscussions.length === 0 && (
-          <div className="text-center py-12">
-            <MessageCircle className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-            <p className="text-muted-foreground">No discussions found.</p>
-            <Button className="mt-4">Start a Discussion</Button>
-          </div>
+            {filteredDiscussions.length === 0 && (
+              <div className="text-center py-12">
+                <MessageCircle className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                <p className="text-muted-foreground">No discussions yet. Start the first one!</p>
+                <Button className="mt-4">Start a Discussion</Button>
+              </div>
+            )}
+          </>
         )}
       </div>
     </MainLayout>

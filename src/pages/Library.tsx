@@ -1,11 +1,11 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { Search, Grid, List, Lock, Clock, Sparkles } from "lucide-react";
+import { Search, Grid, List, Lock, Clock, Sparkles, Loader2 } from "lucide-react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { mockBooks } from "@/data/mockData";
+import { useBooks, Book } from "@/hooks/useBooks";
 import { cn } from "@/lib/utils";
 
 type ContentFilter = "all" | "novel" | "play" | "poem";
@@ -14,11 +14,14 @@ const Library = () => {
   const [search, setSearch] = useState("");
   const [contentFilter, setContentFilter] = useState<ContentFilter>("all");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  
+  const { data: books, isLoading } = useBooks();
 
   const filterBooks = (category: string) => {
-    return mockBooks.filter((book) => {
+    if (!books) return [];
+    return books.filter((book) => {
       const matchesCategory = category === "all" || book.category === category;
-      const matchesContent = contentFilter === "all" || book.contentType === contentFilter;
+      const matchesContent = contentFilter === "all" || book.content_type === contentFilter;
       const matchesSearch =
         search === "" ||
         book.title.toLowerCase().includes(search.toLowerCase()) ||
@@ -26,6 +29,16 @@ const Library = () => {
       return matchesCategory && matchesContent && matchesSearch;
     });
   };
+
+  if (isLoading) {
+    return (
+      <MainLayout>
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+        </div>
+      </MainLayout>
+    );
+  }
 
   return (
     <MainLayout>
@@ -114,9 +127,9 @@ const Library = () => {
   );
 };
 
-function BookCard({ book }: { book: typeof mockBooks[0] }) {
+function BookCard({ book }: { book: Book }) {
   return (
-    <Link to={`/book/${book.id}`} className="group">
+    <Link to={`/read/${book.id}`} className="group">
       <div className="relative">
         <div
           className={cn(
@@ -126,26 +139,26 @@ function BookCard({ book }: { book: typeof mockBooks[0] }) {
             book.category === "subscriber" && "bg-gradient-to-br from-green-50 to-green-100"
           )}
         >
-          {book.contentType === "novel" && "📚"}
-          {book.contentType === "play" && "🎭"}
-          {book.contentType === "poem" && "📜"}
+          {book.content_type === "novel" && "📚"}
+          {book.content_type === "play" && "🎭"}
+          {book.content_type === "poem" && "📜"}
         </div>
 
-        {book.isFeatured && (
+        {book.is_featured && (
           <div className="absolute top-2 left-2 bg-amber-100/90 backdrop-blur-sm px-2 py-1 rounded-lg flex items-center gap-1 text-xs text-amber-800">
             <Sparkles className="w-3 h-3" />
             Featured
           </div>
         )}
 
-        {book.requiresPoints && (
+        {book.requires_points && (
           <div className="absolute top-2 right-2 bg-card/90 backdrop-blur-sm px-2 py-1 rounded-lg flex items-center gap-1 text-xs border border-border">
             <Lock className="w-3 h-3" />
-            {book.pointsCost}
+            {book.points_cost}
           </div>
         )}
 
-        {book.earlyAccessUntil && (
+        {book.early_access_until && (
           <div className="absolute bottom-2 left-2 right-2 bg-amber-100/90 backdrop-blur-sm px-2 py-1 rounded-lg flex items-center justify-center gap-1 text-xs text-amber-800">
             <Clock className="w-3 h-3" />
             Early Access
@@ -161,10 +174,10 @@ function BookCard({ book }: { book: typeof mockBooks[0] }) {
   );
 }
 
-function BookListItem({ book }: { book: typeof mockBooks[0] }) {
+function BookListItem({ book }: { book: Book }) {
   return (
     <Link
-      to={`/book/${book.id}`}
+      to={`/read/${book.id}`}
       className="flex gap-4 bg-card rounded-xl p-4 border border-border shadow-soft hover:shadow-card transition-all duration-300"
     >
       <div
@@ -175,9 +188,9 @@ function BookListItem({ book }: { book: typeof mockBooks[0] }) {
           book.category === "subscriber" && "bg-gradient-to-br from-green-50 to-green-100"
         )}
       >
-        {book.contentType === "novel" && "📚"}
-        {book.contentType === "play" && "🎭"}
-        {book.contentType === "poem" && "📜"}
+        {book.content_type === "novel" && "📚"}
+        {book.content_type === "play" && "🎭"}
+        {book.content_type === "poem" && "📜"}
       </div>
 
       <div className="flex-1 min-w-0">
@@ -189,10 +202,10 @@ function BookListItem({ book }: { book: typeof mockBooks[0] }) {
             <p className="text-sm text-muted-foreground">{book.author}</p>
           </div>
 
-          {book.requiresPoints && (
+          {book.requires_points && (
             <div className="shrink-0 bg-muted px-2 py-1 rounded-lg flex items-center gap-1 text-xs">
               <Lock className="w-3 h-3" />
-              {book.pointsCost}
+              {book.points_cost}
             </div>
           )}
         </div>
@@ -202,10 +215,10 @@ function BookListItem({ book }: { book: typeof mockBooks[0] }) {
         </p>
 
         <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
-          <span className="capitalize">{book.contentType}</span>
+          <span className="capitalize">{book.content_type}</span>
           <span>•</span>
-          <span>{Math.round(book.estimatedReadingTime / 60)}h read</span>
-          {book.isFeatured && (
+          <span>{Math.round(book.estimated_reading_time / 60)}h read</span>
+          {book.is_featured && (
             <>
               <span>•</span>
               <span className="flex items-center gap-1 text-amber-600">

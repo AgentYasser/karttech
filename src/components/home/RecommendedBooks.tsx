@@ -1,10 +1,28 @@
 import { Link } from "react-router-dom";
-import { ChevronRight, Sparkles, Lock, Clock } from "lucide-react";
-import { mockBooks } from "@/data/mockData";
+import { ChevronRight, Sparkles, Lock, Clock, Loader2 } from "lucide-react";
+import { useFeaturedBooks } from "@/hooks/useBooks";
 import { cn } from "@/lib/utils";
 
 export function RecommendedBooks() {
-  const featuredBooks = mockBooks.filter((b) => b.isFeatured).slice(0, 4);
+  const { data: books, isLoading } = useFeaturedBooks();
+
+  if (isLoading) {
+    return (
+      <div className="animate-fade-up animation-delay-200">
+        <div className="flex items-center gap-2 mb-4">
+          <Sparkles className="w-5 h-5 text-amber-500" />
+          <h2 className="font-medium text-card-foreground">Recommended</h2>
+        </div>
+        <div className="flex items-center justify-center py-8">
+          <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+        </div>
+      </div>
+    );
+  }
+
+  if (!books || books.length === 0) {
+    return null;
+  }
 
   return (
     <div className="animate-fade-up animation-delay-200">
@@ -23,10 +41,10 @@ export function RecommendedBooks() {
       </div>
 
       <div className="flex gap-4 overflow-x-auto pb-2 -mx-4 px-4 scrollbar-hide">
-        {featuredBooks.map((book) => (
+        {books.map((book) => (
           <Link
             key={book.id}
-            to={`/book/${book.id}`}
+            to={`/read/${book.id}`}
             className="shrink-0 w-36 group"
           >
             <div className="relative">
@@ -38,17 +56,19 @@ export function RecommendedBooks() {
                   book.category === "subscriber" && "bg-gradient-to-br from-green-50 to-green-100"
                 )}
               >
-                📚
+                {book.content_type === "novel" && "📚"}
+                {book.content_type === "play" && "🎭"}
+                {book.content_type === "poem" && "📜"}
               </div>
 
-              {book.requiresPoints && (
+              {book.requires_points && (
                 <div className="absolute top-2 right-2 bg-card/90 backdrop-blur-sm px-2 py-1 rounded-lg flex items-center gap-1 text-xs border border-border">
                   <Lock className="w-3 h-3" />
-                  {book.pointsCost}
+                  {book.points_cost}
                 </div>
               )}
 
-              {book.earlyAccessUntil && (
+              {book.early_access_until && (
                 <div className="absolute bottom-2 left-2 right-2 bg-amber-100/90 backdrop-blur-sm px-2 py-1 rounded-lg flex items-center gap-1 text-xs text-amber-800">
                   <Clock className="w-3 h-3" />
                   Early Access
