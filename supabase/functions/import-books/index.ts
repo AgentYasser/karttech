@@ -153,7 +153,8 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    const { action, author, category, limit = 10 } = await req.json();
+    const body = await req.json();
+    const { action, author, category, limit = 10, gutenberg_id, book_id } = body;
     console.log(`Import books action: ${action}, author: ${author}, category: ${category}`);
 
     if (action === 'import_by_author') {
@@ -295,8 +296,6 @@ serve(async (req) => {
     }
     
     if (action === 'fetch_book_content') {
-      const { gutenberg_id, book_id } = await req.json();
-      
       // Fetch full text from Gutenberg
       const textUrl = `https://www.gutenberg.org/files/${gutenberg_id}/${gutenberg_id}-0.txt`;
       console.log(`Fetching book content: ${textUrl}`);
