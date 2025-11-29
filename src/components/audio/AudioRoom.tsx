@@ -1,7 +1,7 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { 
-  Mic, MicOff, PhoneOff, MessageSquare, Users, X, Settings 
+  Mic, MicOff, PhoneOff, MessageSquare, Users, X, Wifi, WifiOff 
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ParticipantCard } from "./ParticipantCard";
@@ -16,8 +16,10 @@ import {
   useEndRoom,
 } from "@/hooks/useDiscussionRooms";
 import { useAuth } from "@/contexts/AuthContext";
+import { useWebRTC } from "@/hooks/useWebRTC";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 interface AudioRoomProps {
   roomId: string;
@@ -26,10 +28,8 @@ interface AudioRoomProps {
 export function AudioRoom({ roomId }: AudioRoomProps) {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const [isMuted, setIsMuted] = useState(true);
   const [showChat, setShowChat] = useState(false);
   const [hasJoined, setHasJoined] = useState(false);
-  const [audioStream, setAudioStream] = useState<MediaStream | null>(null);
 
   const { data: room, isLoading: roomLoading } = useDiscussionRoom(roomId);
   const { data: participants, refetch: refetchParticipants } = useRoomParticipants(roomId);
@@ -43,6 +43,20 @@ export function AudioRoom({ roomId }: AudioRoomProps) {
   const currentParticipant = participants?.find(p => p.user_id === user?.id);
   const isCreator = room?.created_by === user?.id;
   const isModerator = currentParticipant?.role === "moderator" || currentParticipant?.role === "creator";
+
+  // WebRTC connection
+  const {
+    isConnected,
+    isMuted,
+    error: webrtcError,
+    connect,
+    disconnect,
+    toggleMute,
+  } = useWebRTC({
+    roomId,
+    userId: user?.id || "",
+    enabled: hasJoined,
+  });
 
   // Subscribe to participant changes
   useEffect(() => {
@@ -74,39 +88,31 @@ export function AudioRoom({ roomId }: AudioRoomProps) {
     }
   }, [currentParticipant]);
 
-  // Initialize audio on join
-  const initAudio = useCallback(async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: {
-          echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: true,
-        },
-      });
-      setAudioStream(stream);
-      // Start muted
-      stream.getAudioTracks().forEach(track => track.enabled = false);
-    } catch (error) {
-      console.error("Failed to get audio:", error);
+  // Connect to WebRTC when joined
+  useEffect(() => {
+    if (hasJoined && user?.id) {
+      connect();
     }
-  }, []);
+  }, [hasJoined, user?.id, connect]);
+
+  // Show WebRTC errors
+  useEffect(() => {
+    if (webrtcError) {
+      toast.error(`Audio connection error: ${webrtcError}`);
+    }
+  }, [webrtcError]);
 
   // Handle join
   const handleJoin = async () => {
     if (!currentParticipant) {
       await joinRoom.mutateAsync(roomId);
     }
-    await initAudio();
     setHasJoined(true);
   };
 
   // Handle leave
   const handleLeave = async () => {
-    if (audioStream) {
-      audioStream.getTracks().forEach(track => track.stop());
-      setAudioStream(null);
-    }
+    await disconnect();
     await leaveRoom.mutateAsync(roomId);
     setHasJoined(false);
     navigate("/audio-rooms");
@@ -114,18 +120,14 @@ export function AudioRoom({ roomId }: AudioRoomProps) {
 
   // Toggle mute
   const handleToggleMute = () => {
-    if (audioStream) {
-      const newMuted = !isMuted;
-      audioStream.getAudioTracks().forEach(track => track.enabled = !newMuted);
-      setIsMuted(newMuted);
-      
-      if (currentParticipant) {
-        updateMute.mutate({
-          roomId,
-          participantId: currentParticipant.id,
-          isMuted: newMuted,
-        });
-      }
+    const newMuted = toggleMute();
+    
+    if (currentParticipant) {
+      updateMute.mutate({
+        roomId,
+        participantId: currentParticipant.id,
+        isMuted: newMuted,
+      });
     }
   };
 
@@ -214,8 +216,13 @@ export function AudioRoom({ roomId }: AudioRoomProps) {
             )}
           </div>
           <div className="flex items-center gap-2">
-            <span className="text-xs bg-primary/10 text-primary px-2 py-1 rounded-full">
-              {room.status === "live" ? "🔴 Live" : "Scheduled"}
+            <span className="text-xs bg-primary/10 text-primary px-2 py-1 rounded-full flex items-center gap-1">
+              {isConnected ? (
+                <Wifi className="w-3 h-3" />
+              ) : (
+                <WifiOff className="w-3 h-3" />
+              )}
+              {room.status === "live" ? "Live" : "Scheduled"}
             </span>
             <Button
               variant="ghost"
