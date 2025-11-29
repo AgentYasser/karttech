@@ -681,6 +681,45 @@ export type Database = {
           },
         ]
       }
+      user_book_purchases: {
+        Row: {
+          book_id: string
+          id: string
+          points_spent: number
+          purchased_at: string
+          user_id: string
+        }
+        Insert: {
+          book_id: string
+          id?: string
+          points_spent?: number
+          purchased_at?: string
+          user_id: string
+        }
+        Update: {
+          book_id?: string
+          id?: string
+          points_spent?: number
+          purchased_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_book_purchases_book_id_fkey"
+            columns: ["book_id"]
+            isOneToOne: false
+            referencedRelation: "books"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_book_purchases_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_vocabulary: {
         Row: {
           book_id: string | null
