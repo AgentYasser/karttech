@@ -12,14 +12,16 @@ import {
   Bell,
   Shield,
   HelpCircle,
+  LogOut,
 } from "lucide-react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { mockUser, mockAchievements } from "@/data/mockData";
+import { useAuth } from "@/contexts/AuthContext";
+import { mockAchievements } from "@/data/mockData";
 import { cn } from "@/lib/utils";
 
-const levelThresholds = {
+const levelThresholds: Record<string, { min: number; max: number }> = {
   beginner: { min: 0, max: 500 },
   intermediate: { min: 501, max: 2000 },
   advanced: { min: 2001, max: 5000 },
@@ -28,12 +30,23 @@ const levelThresholds = {
 };
 
 const Profile = () => {
-  const currentLevel = levelThresholds[mockUser.level];
-  const nextLevel = Object.entries(levelThresholds).find(
+  const { profile, signOut } = useAuth();
+
+  const userLevel = profile?.level || "beginner";
+  const userPoints = profile?.points || 0;
+  const currentLevel = levelThresholds[userLevel] || levelThresholds.beginner;
+  
+  const nextLevelEntry = Object.entries(levelThresholds).find(
     ([_, threshold]) => threshold.min > currentLevel.max
   );
-  const levelProgress =
-    ((mockUser.points - currentLevel.min) / (currentLevel.max - currentLevel.min)) * 100;
+  
+  const levelProgress = currentLevel.max === Infinity 
+    ? 100 
+    : Math.min(((userPoints - currentLevel.min) / (currentLevel.max - currentLevel.min)) * 100, 100);
+
+  const handleSignOut = async () => {
+    await signOut();
+  };
 
   return (
     <MainLayout>
@@ -42,28 +55,28 @@ const Profile = () => {
         <div className="bg-card rounded-2xl p-6 border border-border shadow-card animate-fade-up">
           <div className="flex items-center gap-4">
             <div className="w-20 h-20 rounded-full bg-primary flex items-center justify-center text-4xl">
-              📖
+              {profile?.username?.charAt(0).toUpperCase() || "📖"}
             </div>
 
             <div className="flex-1">
               <h1 className="font-reading text-xl font-semibold text-card-foreground">
-                {mockUser.username}
+                {profile?.username || "Reader"}
               </h1>
-              <p className="text-sm text-muted-foreground">{mockUser.email}</p>
+              <p className="text-sm text-muted-foreground">{profile?.email}</p>
 
               <div className="flex items-center gap-2 mt-2">
                 <span
                   className={cn(
                     "px-3 py-1 rounded-full text-xs font-medium capitalize",
-                    mockUser.level === "beginner" && "bg-gray-100 text-gray-700",
-                    mockUser.level === "intermediate" && "bg-blue-100 text-blue-700",
-                    mockUser.level === "advanced" && "bg-purple-100 text-purple-700",
-                    mockUser.level === "master" && "bg-amber-100 text-amber-700",
-                    mockUser.level === "sage" && "bg-gradient-to-r from-amber-200 to-yellow-200 text-amber-800"
+                    userLevel === "beginner" && "bg-gray-100 text-gray-700",
+                    userLevel === "intermediate" && "bg-blue-100 text-blue-700",
+                    userLevel === "advanced" && "bg-purple-100 text-purple-700",
+                    userLevel === "master" && "bg-amber-100 text-amber-700",
+                    userLevel === "sage" && "bg-gradient-to-r from-amber-200 to-yellow-200 text-amber-800"
                   )}
                 >
                   <Crown className="w-3 h-3 inline mr-1" />
-                  {mockUser.level}
+                  {userLevel}
                 </span>
               </div>
             </div>
@@ -76,12 +89,12 @@ const Profile = () => {
           {/* Level Progress */}
           <div className="mt-6">
             <div className="flex justify-between text-xs text-muted-foreground mb-2">
-              <span>{mockUser.points.toLocaleString()} points</span>
-              {nextLevel && (
-                <span>{nextLevel[1].min.toLocaleString()} to {nextLevel[0]}</span>
+              <span>{userPoints.toLocaleString()} points</span>
+              {nextLevelEntry && (
+                <span>{nextLevelEntry[1].min.toLocaleString()} to {nextLevelEntry[0]}</span>
               )}
             </div>
-            <Progress value={Math.min(levelProgress, 100)} className="h-2" />
+            <Progress value={levelProgress} className="h-2" />
           </div>
         </div>
 
@@ -90,7 +103,7 @@ const Profile = () => {
           <div className="bg-card rounded-xl p-4 border border-border shadow-soft text-center">
             <BookOpen className="w-6 h-6 text-foreground mx-auto mb-2" />
             <span className="text-2xl font-bold text-card-foreground block">
-              {mockUser.booksCompleted}
+              {profile?.books_completed || 0}
             </span>
             <span className="text-xs text-muted-foreground">Books Read</span>
           </div>
@@ -98,7 +111,7 @@ const Profile = () => {
           <div className="bg-card rounded-xl p-4 border border-border shadow-soft text-center">
             <Clock className="w-6 h-6 text-foreground mx-auto mb-2" />
             <span className="text-2xl font-bold text-card-foreground block">
-              {mockUser.chaptersRead}
+              {profile?.chapters_read || 0}
             </span>
             <span className="text-xs text-muted-foreground">Chapters</span>
           </div>
@@ -106,7 +119,7 @@ const Profile = () => {
           <div className="bg-card rounded-xl p-4 border border-border shadow-soft text-center">
             <Flame className="w-6 h-6 text-orange-500 mx-auto mb-2" />
             <span className="text-2xl font-bold text-card-foreground block">
-              {mockUser.readingStreak}
+              {profile?.reading_streak || 0}
             </span>
             <span className="text-xs text-muted-foreground">Day Streak</span>
           </div>
@@ -148,7 +161,7 @@ const Profile = () => {
           <h2 className="font-medium text-card-foreground mb-3">Settings</h2>
 
           {[
-            { icon: CreditCard, label: "Subscription", subtitle: "Free Plan" },
+            { icon: CreditCard, label: "Subscription", subtitle: profile?.subscription_tier === "premium" ? "Premium" : "Free Plan" },
             { icon: Bell, label: "Notifications", subtitle: "Manage alerts" },
             { icon: Shield, label: "Privacy", subtitle: "Account security" },
             { icon: HelpCircle, label: "Help & Support", subtitle: "Get assistance" },
@@ -169,23 +182,38 @@ const Profile = () => {
               <ChevronRight className="w-5 h-5 text-muted-foreground" />
             </button>
           ))}
+
+          <button
+            onClick={handleSignOut}
+            className="w-full flex items-center gap-4 bg-card rounded-xl p-4 border border-border shadow-soft hover:shadow-card transition-all duration-300 text-left"
+          >
+            <div className="w-10 h-10 rounded-xl bg-destructive/10 flex items-center justify-center">
+              <LogOut className="w-5 h-5 text-destructive" />
+            </div>
+            <div className="flex-1">
+              <span className="font-medium text-destructive block">Sign Out</span>
+              <span className="text-xs text-muted-foreground">Log out of your account</span>
+            </div>
+          </button>
         </div>
 
         {/* Upgrade CTA */}
-        <div className="bg-gradient-to-br from-amber-50 to-amber-100 rounded-2xl p-6 border border-amber-200 animate-fade-up animation-delay-400">
-          <div className="flex items-center gap-3 mb-3">
-            <Star className="w-6 h-6 text-amber-600" />
-            <h3 className="font-reading font-semibold text-amber-900">
-              Upgrade to Premium
-            </h3>
+        {profile?.subscription_tier !== "premium" && (
+          <div className="bg-gradient-to-br from-amber-50 to-amber-100 rounded-2xl p-6 border border-amber-200 animate-fade-up animation-delay-400">
+            <div className="flex items-center gap-3 mb-3">
+              <Star className="w-6 h-6 text-amber-600" />
+              <h3 className="font-reading font-semibold text-amber-900">
+                Upgrade to Premium
+              </h3>
+            </div>
+            <p className="text-sm text-amber-800 mb-4">
+              Get unlimited access to all books, exclusive discussions, and bonus points.
+            </p>
+            <Button className="w-full bg-amber-600 hover:bg-amber-700 text-white">
+              $4.99/month • Start Free Trial
+            </Button>
           </div>
-          <p className="text-sm text-amber-800 mb-4">
-            Get unlimited access to all books, exclusive discussions, and bonus points.
-          </p>
-          <Button className="w-full bg-amber-600 hover:bg-amber-700 text-white">
-            $4.99/month • Start Free Trial
-          </Button>
-        </div>
+        )}
       </div>
     </MainLayout>
   );
