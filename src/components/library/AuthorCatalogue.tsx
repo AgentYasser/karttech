@@ -7,6 +7,10 @@ const TIMELESS_AUTHORS = {
     label: "Classic Fiction",
     authors: ["Jane Austen", "Charles Dickens", "Mark Twain", "Charlotte Brontë", "Fyodor Dostoevsky", "Leo Tolstoy"],
   },
+  modern_classics: {
+    label: "Modern Classics",
+    authors: ["George Orwell", "Franz Kafka", "Aldous Huxley", "John Kennedy Toole", "Albert Camus", "Virginia Woolf", "James Joyce", "F. Scott Fitzgerald", "Ernest Hemingway"],
+  },
   drama_poetry: {
     label: "Drama & Poetry",
     authors: ["William Shakespeare", "Homer", "Dante Alighieri", "John Milton", "Walt Whitman"],
