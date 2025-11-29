@@ -1,1 +1,4 @@
 project_id = "uljuzzhrthkowtejdqgv"
+
+[functions.import-books]
+verify_jwt = false
