@@ -1,19 +1,25 @@
-import { useState } from "react";
-import { Users, Plus, Calendar, Lock, Loader2 } from "lucide-react";
+import { Users, Plus, Lock, Loader2 } from "lucide-react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { useGroups, useJoinGroup } from "@/hooks/useGroups";
+import { useGroups, useJoinGroup, useLeaveGroup } from "@/hooks/useGroups";
 import { useToast } from "@/hooks/use-toast";
+import { CreateGroupDialog } from "@/components/groups/CreateGroupDialog";
+import { useAuth } from "@/contexts/AuthContext";
+import { useAwardPoints } from "@/hooks/usePoints";
 
 const Groups = () => {
   const { data: groups, isLoading } = useGroups();
   const joinGroup = useJoinGroup();
+  const leaveGroup = useLeaveGroup();
   const { toast } = useToast();
+  const { user } = useAuth();
+  const awardPoints = useAwardPoints();
 
   const handleJoinGroup = async (groupId: string) => {
     try {
       await joinGroup.mutateAsync(groupId);
+      awardPoints.mutate({ source: "group_joined" });
       toast({
         title: "Joined!",
         description: "You've successfully joined the reading group.",
@@ -41,10 +47,12 @@ const Groups = () => {
             </p>
           </div>
 
-          <Button className="gap-2">
-            <Plus className="w-4 h-4" />
-            Create
-          </Button>
+          <CreateGroupDialog>
+            <Button className="gap-2">
+              <Plus className="w-4 h-4" />
+              Create
+            </Button>
+          </CreateGroupDialog>
         </div>
 
         {isLoading ? (
@@ -128,7 +136,9 @@ const Groups = () => {
               <div className="text-center py-12">
                 <Users className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
                 <p className="text-muted-foreground">No groups available yet.</p>
-                <Button className="mt-4">Create a Group</Button>
+                <CreateGroupDialog>
+                  <Button className="mt-4">Create a Group</Button>
+                </CreateGroupDialog>
               </div>
             )}
           </>

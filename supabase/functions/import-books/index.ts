@@ -68,6 +68,31 @@ interface OpenLibraryBook {
   number_of_pages_median?: number;
 }
 
+async function fetchGoogleBooksCover(title: string, author: string): Promise<string | null> {
+  try {
+    const query = encodeURIComponent(`${title} ${author}`);
+    const url = `https://www.googleapis.com/books/v1/volumes?q=${query}&maxResults=1`;
+    console.log(`Fetching Google Books cover for: ${title}`);
+    
+    const response = await fetch(url);
+    if (!response.ok) return null;
+    
+    const data = await response.json();
+    const book = data.items?.[0];
+    
+    if (book?.volumeInfo?.imageLinks?.thumbnail) {
+      // Replace http with https and get larger image
+      return book.volumeInfo.imageLinks.thumbnail
+        .replace('http://', 'https://')
+        .replace('zoom=1', 'zoom=2');
+    }
+    return null;
+  } catch (error) {
+    console.error('Google Books API error:', error);
+    return null;
+  }
+}
+
 async function fetchGutenbergBooks(search: string, limit = 10): Promise<GutenbergBook[]> {
   try {
     const url = `https://gutendex.com/books/?search=${encodeURIComponent(search)}&languages=en`;
@@ -182,13 +207,17 @@ serve(async (req) => {
           continue;
         }
         
-        // Find cover from Open Library if available
-        const olMatch = openLibraryBooks.find(ol => 
-          ol.title?.toLowerCase().includes(book.title.toLowerCase().split(':')[0])
-        );
-        const coverUrl = olMatch?.cover_i 
-          ? `https://covers.openlibrary.org/b/id/${olMatch.cover_i}-M.jpg`
-          : null;
+        // Find cover from Google Books or Open Library
+        let coverUrl = await fetchGoogleBooksCover(book.title, book.authors[0].name);
+        
+        if (!coverUrl) {
+          const olMatch = openLibraryBooks.find(ol => 
+            ol.title?.toLowerCase().includes(book.title.toLowerCase().split(':')[0])
+          );
+          coverUrl = olMatch?.cover_i 
+            ? `https://covers.openlibrary.org/b/id/${olMatch.cover_i}-M.jpg`
+            : null;
+        }
         
         const bookData = {
           title: book.title,

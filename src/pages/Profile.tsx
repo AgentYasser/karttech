@@ -13,6 +13,7 @@ import {
   Shield,
   HelpCircle,
   LogOut,
+  BookMarked,
 } from "lucide-react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Button } from "@/components/ui/button";
@@ -159,6 +160,20 @@ const Profile = () => {
         {/* Menu Items */}
         <div className="space-y-2 animate-fade-up animation-delay-300">
           <h2 className="font-medium text-card-foreground mb-3">Settings</h2>
+
+          <Link
+            to="/vocabulary"
+            className="w-full flex items-center gap-4 bg-card rounded-xl p-4 border border-border shadow-soft hover:shadow-card transition-all duration-300"
+          >
+            <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+              <BookMarked className="w-5 h-5 text-primary" />
+            </div>
+            <div className="flex-1">
+              <span className="font-medium text-card-foreground block">My Vocabulary</span>
+              <span className="text-xs text-muted-foreground">Words you've learned</span>
+            </div>
+            <ChevronRight className="w-5 h-5 text-muted-foreground" />
+          </Link>
 
           {[
             { icon: CreditCard, label: "Subscription", subtitle: profile?.subscription_tier === "premium" ? "Premium" : "Free Plan" },

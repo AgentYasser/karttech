@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { MessageCircle, ThumbsUp, Mic, Plus, Loader2 } from "lucide-react";
+import { MessageCircle, ThumbsUp, Plus, Loader2 } from "lucide-react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Button } from "@/components/ui/button";
 import { useDiscussions } from "@/hooks/useDiscussions";
+import { CreateDiscussionDialog } from "@/components/discussions/CreateDiscussionDialog";
 import { cn } from "@/lib/utils";
 
 const Discussions = () => {
@@ -30,10 +31,12 @@ const Discussions = () => {
             </p>
           </div>
 
-          <Button className="gap-2">
-            <Plus className="w-4 h-4" />
-            New
-          </Button>
+          <CreateDiscussionDialog>
+            <Button className="gap-2">
+              <Plus className="w-4 h-4" />
+              New
+            </Button>
+          </CreateDiscussionDialog>
         </div>
 
         {/* Filters */}
@@ -115,7 +118,9 @@ const Discussions = () => {
               <div className="text-center py-12">
                 <MessageCircle className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
                 <p className="text-muted-foreground">No discussions yet. Start the first one!</p>
-                <Button className="mt-4">Start a Discussion</Button>
+                <CreateDiscussionDialog>
+                  <Button className="mt-4">Start a Discussion</Button>
+                </CreateDiscussionDialog>
               </div>
             )}
           </>
