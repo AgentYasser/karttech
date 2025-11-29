@@ -178,6 +178,209 @@ export type Database = {
           },
         ]
       }
+      discussion_point_awards: {
+        Row: {
+          created_at: string
+          from_user_id: string
+          id: string
+          points: number
+          reason: string | null
+          room_id: string
+          to_user_id: string
+        }
+        Insert: {
+          created_at?: string
+          from_user_id: string
+          id?: string
+          points: number
+          reason?: string | null
+          room_id: string
+          to_user_id: string
+        }
+        Update: {
+          created_at?: string
+          from_user_id?: string
+          id?: string
+          points?: number
+          reason?: string | null
+          room_id?: string
+          to_user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "discussion_point_awards_from_user_id_fkey"
+            columns: ["from_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "discussion_point_awards_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "discussion_rooms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "discussion_point_awards_to_user_id_fkey"
+            columns: ["to_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      discussion_room_messages: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          room_id: string
+          user_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          room_id: string
+          user_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          room_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "discussion_room_messages_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "discussion_rooms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "discussion_room_messages_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      discussion_room_participants: {
+        Row: {
+          id: string
+          is_muted: boolean | null
+          is_speaking: boolean | null
+          joined_at: string
+          left_at: string | null
+          role: Database["public"]["Enums"]["room_role"]
+          room_id: string
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          is_muted?: boolean | null
+          is_speaking?: boolean | null
+          joined_at?: string
+          left_at?: string | null
+          role?: Database["public"]["Enums"]["room_role"]
+          room_id: string
+          user_id: string
+        }
+        Update: {
+          id?: string
+          is_muted?: boolean | null
+          is_speaking?: boolean | null
+          joined_at?: string
+          left_at?: string | null
+          role?: Database["public"]["Enums"]["room_role"]
+          room_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "discussion_room_participants_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "discussion_rooms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "discussion_room_participants_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      discussion_rooms: {
+        Row: {
+          book_id: string | null
+          created_at: string
+          created_by: string
+          description: string | null
+          ended_at: string | null
+          group_id: string | null
+          id: string
+          scheduled_at: string | null
+          started_at: string | null
+          status: Database["public"]["Enums"]["room_status"]
+          title: string
+        }
+        Insert: {
+          book_id?: string | null
+          created_at?: string
+          created_by: string
+          description?: string | null
+          ended_at?: string | null
+          group_id?: string | null
+          id?: string
+          scheduled_at?: string | null
+          started_at?: string | null
+          status?: Database["public"]["Enums"]["room_status"]
+          title: string
+        }
+        Update: {
+          book_id?: string | null
+          created_at?: string
+          created_by?: string
+          description?: string | null
+          ended_at?: string | null
+          group_id?: string | null
+          id?: string
+          scheduled_at?: string | null
+          started_at?: string | null
+          status?: Database["public"]["Enums"]["room_status"]
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "discussion_rooms_book_id_fkey"
+            columns: ["book_id"]
+            isOneToOne: false
+            referencedRelation: "books"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "discussion_rooms_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "discussion_rooms_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "reading_groups"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       discussions: {
         Row: {
           book_id: string
@@ -531,7 +734,8 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      room_role: "creator" | "moderator" | "member"
+      room_status: "scheduled" | "live" | "ended"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -658,6 +862,9 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      room_role: ["creator", "moderator", "member"],
+      room_status: ["scheduled", "live", "ended"],
+    },
   },
 } as const
