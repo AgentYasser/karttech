@@ -11,6 +11,7 @@ import ReadingPage from "./pages/ReadingPage";
 import Discussions from "./pages/Discussions";
 import Groups from "./pages/Groups";
 import Profile from "./pages/Profile";
+import Vocabulary from "./pages/Vocabulary";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 
@@ -86,6 +87,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <Profile />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/vocabulary"
+              element={
+                <ProtectedRoute>
+                  <Vocabulary />
                 </ProtectedRoute>
               }
             />

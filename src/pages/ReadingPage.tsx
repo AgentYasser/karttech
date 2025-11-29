@@ -6,8 +6,6 @@ import {
   Bookmark,
   ChevronLeft,
   ChevronRight,
-  X,
-  Volume2,
   Loader2,
   Download,
 } from "lucide-react";
@@ -16,18 +14,22 @@ import { Progress } from "@/components/ui/progress";
 import { useBook, useBookChapters } from "@/hooks/useBooks";
 import { useReadingSession, useUpsertReadingSession } from "@/hooks/useReadingSession";
 import { useFetchBookContent } from "@/hooks/useImportBooks";
+import { WordLookupDialog } from "@/components/reading/WordLookupDialog";
+import { useAwardPoints } from "@/hooks/usePoints";
 
 const ReadingPage = () => {
   const { bookId } = useParams();
   const [selectedWord, setSelectedWord] = useState<string | null>(null);
   const [showDefinition, setShowDefinition] = useState(false);
   const [currentChapterIndex, setCurrentChapterIndex] = useState(0);
+  const [lastAwardedChapter, setLastAwardedChapter] = useState<number>(-1);
 
   const { data: book, isLoading: bookLoading } = useBook(bookId);
   const { data: chapters, isLoading: chaptersLoading, refetch: refetchChapters } = useBookChapters(bookId);
   const { data: session } = useReadingSession(bookId);
   const upsertSession = useUpsertReadingSession();
   const fetchContent = useFetchBookContent();
+  const awardPoints = useAwardPoints();
 
   // Set initial chapter from session
   useEffect(() => {
@@ -60,6 +62,11 @@ const ReadingPage = () => {
 
   const goToNextChapter = () => {
     if (chapters && currentChapterIndex < chapters.length - 1) {
+      // Award points for completing a chapter (only once per chapter)
+      if (currentChapterIndex > lastAwardedChapter) {
+        awardPoints.mutate({ source: "reading_chapter" });
+        setLastAwardedChapter(currentChapterIndex);
+      }
       setCurrentChapterIndex(currentChapterIndex + 1);
     }
   };
@@ -230,46 +237,13 @@ const ReadingPage = () => {
         </div>
       </footer>
 
-      {/* Dictionary Popup */}
-      {showDefinition && selectedWord && (
-        <div className="fixed inset-x-4 bottom-24 max-w-md mx-auto bg-card rounded-2xl shadow-hover border border-border p-5 z-50 animate-fade-up">
-          <div className="flex items-start justify-between mb-3">
-            <div>
-              <h3 className="font-reading text-lg font-semibold text-card-foreground capitalize">
-                {selectedWord}
-              </h3>
-              <p className="text-xs text-muted-foreground">Tap to look up definition</p>
-            </div>
-
-            <div className="flex gap-2">
-              <Button variant="ghost" size="icon" className="h-8 w-8">
-                <Volume2 className="w-4 h-4" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8"
-                onClick={() => setShowDefinition(false)}
-              >
-                <X className="w-4 h-4" />
-              </Button>
-            </div>
-          </div>
-
-          <p className="text-sm text-foreground leading-relaxed">
-            Dictionary integration coming soon. Words can be looked up using the Free Dictionary API.
-          </p>
-
-          <div className="flex gap-2 mt-4">
-            <Button variant="secondary" size="sm" className="flex-1">
-              Add to Vocabulary
-            </Button>
-            <Button variant="soft" size="sm" className="flex-1">
-              Search Online
-            </Button>
-          </div>
-        </div>
-      )}
+      {/* Word Lookup Dialog */}
+      <WordLookupDialog
+        word={selectedWord || ""}
+        bookId={bookId}
+        open={showDefinition}
+        onOpenChange={setShowDefinition}
+      />
     </div>
   );
 };
