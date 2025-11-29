@@ -8,6 +8,7 @@ import {
   ChevronRight,
   Loader2,
   Download,
+  Lock,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -15,7 +16,9 @@ import { useBook, useBookChapters } from "@/hooks/useBooks";
 import { useReadingSession, useUpsertReadingSession } from "@/hooks/useReadingSession";
 import { useFetchBookContent } from "@/hooks/useImportBooks";
 import { WordLookupDialog } from "@/components/reading/WordLookupDialog";
+import { BookPaywall } from "@/components/reading/BookPaywall";
 import { useAwardPoints } from "@/hooks/usePoints";
+import { useHasBookAccess } from "@/hooks/useBookPurchase";
 
 const ReadingPage = () => {
   const { bookId } = useParams();
@@ -27,9 +30,16 @@ const ReadingPage = () => {
   const { data: book, isLoading: bookLoading } = useBook(bookId);
   const { data: chapters, isLoading: chaptersLoading, refetch: refetchChapters } = useBookChapters(bookId);
   const { data: session } = useReadingSession(bookId);
+  const { data: accessInfo, isLoading: accessLoading } = useHasBookAccess(bookId);
   const upsertSession = useUpsertReadingSession();
   const fetchContent = useFetchBookContent();
   const awardPoints = useAwardPoints();
+  
+  // Free preview: first chapter is always available
+  const FREE_PREVIEW_CHAPTERS = 1;
+  const isPreviewChapter = currentChapterIndex < FREE_PREVIEW_CHAPTERS;
+  const hasFullAccess = accessInfo?.hasAccess || false;
+  const canReadCurrentChapter = isPreviewChapter || hasFullAccess;
 
   // Set initial chapter from session
   useEffect(() => {
@@ -62,12 +72,21 @@ const ReadingPage = () => {
 
   const goToNextChapter = () => {
     if (chapters && currentChapterIndex < chapters.length - 1) {
+      const nextChapterIndex = currentChapterIndex + 1;
+      const nextChapterRequiresAccess = nextChapterIndex >= FREE_PREVIEW_CHAPTERS;
+      
+      // Check if user can access next chapter
+      if (nextChapterRequiresAccess && !hasFullAccess && accessInfo?.requiresPoints) {
+        // Can't navigate - show is handled by paywall in content
+        return;
+      }
+      
       // Award points for completing a chapter (only once per chapter)
       if (currentChapterIndex > lastAwardedChapter) {
         awardPoints.mutate({ source: "reading_chapter" });
         setLastAwardedChapter(currentChapterIndex);
       }
-      setCurrentChapterIndex(currentChapterIndex + 1);
+      setCurrentChapterIndex(nextChapterIndex);
     }
   };
 
@@ -149,30 +168,62 @@ const ReadingPage = () => {
         </p>
 
         {currentChapter ? (
-          <div className="reading-content space-y-6">
-            {currentChapter.content.split("\n\n").map((paragraph, pIndex) => (
-              <p key={pIndex} className="leading-relaxed">
-                {paragraph.split(/(\s+)/).map((word, wIndex) => {
-                  const cleanWord = word.replace(/[.,!?;:'"]/g, "").toLowerCase();
-                  const isClickable = cleanWord.length > 2 && !word.match(/^\s+$/);
+          <>
+            {canReadCurrentChapter ? (
+              <div className="reading-content space-y-6">
+                {currentChapter.content.split("\n\n").map((paragraph, pIndex) => (
+                  <p key={pIndex} className="leading-relaxed">
+                    {paragraph.split(/(\s+)/).map((word, wIndex) => {
+                      const cleanWord = word.replace(/[.,!?;:'"]/g, "").toLowerCase();
+                      const isClickable = cleanWord.length > 2 && !word.match(/^\s+$/);
 
-                  return (
-                    <span
-                      key={`${pIndex}-${wIndex}`}
-                      onClick={() => isClickable && handleWordClick(word)}
-                      className={
-                        isClickable
-                          ? "cursor-pointer hover:bg-primary/50 rounded px-0.5 transition-colors"
-                          : ""
-                      }
-                    >
-                      {word}
-                    </span>
-                  );
-                })}
-              </p>
-            ))}
-          </div>
+                      return (
+                        <span
+                          key={`${pIndex}-${wIndex}`}
+                          onClick={() => isClickable && handleWordClick(word)}
+                          className={
+                            isClickable
+                              ? "cursor-pointer hover:bg-primary/50 rounded px-0.5 transition-colors"
+                              : ""
+                          }
+                        >
+                          {word}
+                        </span>
+                      );
+                    })}
+                  </p>
+                ))}
+                
+                {/* Show paywall after first chapter if book requires points */}
+                {isPreviewChapter && accessInfo?.requiresPoints && !hasFullAccess && chapters && currentChapterIndex === chapters.length - 1 && (
+                  <BookPaywall
+                    bookId={bookId!}
+                    bookTitle={book.title}
+                    pointsCost={accessInfo.pointsCost}
+                    earlyAccessUntil={accessInfo.earlyAccessUntil}
+                  />
+                )}
+              </div>
+            ) : (
+              /* Locked chapter - show preview snippet + paywall */
+              <div className="reading-content space-y-6">
+                {currentChapter.content.split("\n\n").slice(0, 2).map((paragraph, pIndex) => (
+                  <p key={pIndex} className="leading-relaxed">
+                    {paragraph.split(/(\s+)/).map((word, wIndex) => (
+                      <span key={`${pIndex}-${wIndex}`}>{word}</span>
+                    ))}
+                  </p>
+                ))}
+                
+                <BookPaywall
+                  bookId={bookId!}
+                  bookTitle={book.title}
+                  pointsCost={accessInfo?.pointsCost || 0}
+                  earlyAccessUntil={accessInfo?.earlyAccessUntil}
+                />
+              </div>
+            )}
+          </>
         ) : (
           <div className="text-center py-12">
             <p className="text-muted-foreground">No content available for this book yet.</p>
@@ -225,15 +276,32 @@ const ReadingPage = () => {
             {currentChapterIndex + 1} / {totalChapters}
           </span>
 
-          <Button
-            variant="default"
-            className="gap-2"
-            onClick={goToNextChapter}
-            disabled={!chapters || currentChapterIndex >= chapters.length - 1}
-          >
-            Next
-            <ChevronRight className="w-4 h-4" />
-          </Button>
+          {(() => {
+            const nextChapterIndex = currentChapterIndex + 1;
+            const nextChapterLocked = nextChapterIndex >= FREE_PREVIEW_CHAPTERS && !hasFullAccess && accessInfo?.requiresPoints;
+            const isLastChapter = !chapters || currentChapterIndex >= chapters.length - 1;
+            
+            return (
+              <Button
+                variant="default"
+                className="gap-2"
+                onClick={goToNextChapter}
+                disabled={isLastChapter || nextChapterLocked}
+              >
+                {nextChapterLocked ? (
+                  <>
+                    <Lock className="w-4 h-4" />
+                    Locked
+                  </>
+                ) : (
+                  <>
+                    Next
+                    <ChevronRight className="w-4 h-4" />
+                  </>
+                )}
+              </Button>
+            );
+          })()}
         </div>
       </footer>
 
