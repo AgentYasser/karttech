@@ -12,6 +12,7 @@ import Discussions from "./pages/Discussions";
 import Groups from "./pages/Groups";
 import Profile from "./pages/Profile";
 import Vocabulary from "./pages/Vocabulary";
+import AudioRooms from "./pages/AudioRooms";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 
@@ -95,6 +96,22 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <Vocabulary />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/audio-rooms"
+              element={
+                <ProtectedRoute>
+                  <AudioRooms />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/audio-rooms/:roomId"
+              element={
+                <ProtectedRoute>
+                  <AudioRooms />
                 </ProtectedRoute>
               }
             />
