@@ -14,12 +14,13 @@ import {
   HelpCircle,
   LogOut,
   BookMarked,
+  Sparkles,
 } from "lucide-react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { useAuth } from "@/contexts/AuthContext";
-import { mockAchievements } from "@/data/mockData";
+import { useUserAchievements } from "@/hooks/useAchievements";
 import { cn } from "@/lib/utils";
 
 const levelThresholds: Record<string, { min: number; max: number }> = {
@@ -32,6 +33,7 @@ const levelThresholds: Record<string, { min: number; max: number }> = {
 
 const Profile = () => {
   const { profile, signOut } = useAuth();
+  const { data: userAchievements } = useUserAchievements();
 
   const userLevel = profile?.level || "beginner";
   const userPoints = profile?.points || 0;
@@ -133,28 +135,36 @@ const Profile = () => {
               <Trophy className="w-5 h-5 text-amber-500" />
               <h2 className="font-medium text-card-foreground">Achievements</h2>
             </div>
-            <Button variant="ghost" size="sm" className="gap-1 text-muted-foreground">
-              View all
-              <ChevronRight className="w-4 h-4" />
-            </Button>
+            <span className="text-sm text-muted-foreground">
+              {userAchievements?.length || 0} unlocked
+            </span>
           </div>
 
-          <div className="flex gap-3 overflow-x-auto pb-2 -mx-4 px-4">
-            {mockAchievements.map((achievement) => (
-              <div
-                key={achievement.id}
-                className="shrink-0 w-32 bg-card rounded-xl p-4 border border-border shadow-soft text-center"
-              >
-                <span className="text-3xl block mb-2">{achievement.icon}</span>
-                <h3 className="text-sm font-medium text-card-foreground line-clamp-1">
-                  {achievement.name}
-                </h3>
-                <p className="text-xs text-muted-foreground mt-1">
-                  +{achievement.pointsAwarded} pts
-                </p>
-              </div>
-            ))}
-          </div>
+          {userAchievements && userAchievements.length > 0 ? (
+            <div className="flex gap-3 overflow-x-auto pb-2 -mx-4 px-4">
+              {userAchievements.map((ua) => (
+                <div
+                  key={ua.id}
+                  className="shrink-0 w-32 bg-card rounded-xl p-4 border border-border shadow-soft text-center"
+                >
+                  <span className="text-3xl block mb-2">🏆</span>
+                  <h3 className="text-sm font-medium text-card-foreground line-clamp-1">
+                    {ua.achievement?.name}
+                  </h3>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    +{ua.achievement?.points_awarded} pts
+                  </p>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="bg-muted/50 rounded-xl p-6 text-center">
+              <Trophy className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
+              <p className="text-sm text-muted-foreground">
+                Start reading to unlock achievements!
+              </p>
+            </div>
+          )}
         </div>
 
         {/* Menu Items */}
@@ -171,6 +181,20 @@ const Profile = () => {
             <div className="flex-1">
               <span className="font-medium text-card-foreground block">My Vocabulary</span>
               <span className="text-xs text-muted-foreground">Words you've learned</span>
+            </div>
+            <ChevronRight className="w-5 h-5 text-muted-foreground" />
+          </Link>
+
+          <Link
+            to="/expert-sessions"
+            className="w-full flex items-center gap-4 bg-card rounded-xl p-4 border border-border shadow-soft hover:shadow-card transition-all duration-300"
+          >
+            <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center">
+              <Sparkles className="w-5 h-5 text-amber-600" />
+            </div>
+            <div className="flex-1">
+              <span className="font-medium text-card-foreground block">Expert Sessions</span>
+              <span className="text-xs text-muted-foreground">Connect with literary experts</span>
             </div>
             <ChevronRight className="w-5 h-5 text-muted-foreground" />
           </Link>

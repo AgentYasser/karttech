@@ -1,4 +1,5 @@
-import { Users, Plus, Lock, Loader2 } from "lucide-react";
+import { Users, Plus, Lock, Loader2, LogOut } from "lucide-react";
+import { Link } from "react-router-dom";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -7,6 +8,8 @@ import { useToast } from "@/hooks/use-toast";
 import { CreateGroupDialog } from "@/components/groups/CreateGroupDialog";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAwardPoints } from "@/hooks/usePoints";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 
 const Groups = () => {
   const { data: groups, isLoading } = useGroups();
@@ -15,6 +18,21 @@ const Groups = () => {
   const { toast } = useToast();
   const { user } = useAuth();
   const awardPoints = useAwardPoints();
+
+  // Get user's memberships
+  const { data: memberships } = useQuery({
+    queryKey: ["user_memberships", user?.id],
+    queryFn: async () => {
+      if (!user) return [];
+      const { data, error } = await supabase
+        .from("group_members")
+        .select("group_id")
+        .eq("user_id", user.id);
+      if (error) throw error;
+      return data.map((m) => m.group_id);
+    },
+    enabled: !!user,
+  });
 
   const handleJoinGroup = async (groupId: string) => {
     try {
@@ -28,6 +46,22 @@ const Groups = () => {
       toast({
         title: "Error",
         description: error.message || "Failed to join group",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleLeaveGroup = async (groupId: string) => {
+    try {
+      await leaveGroup.mutateAsync(groupId);
+      toast({
+        title: "Left group",
+        description: "You've left the reading group.",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to leave group",
         variant: "destructive",
       });
     }
@@ -64,8 +98,9 @@ const Groups = () => {
             {/* Groups List */}
             <div className="space-y-4">
               {groups?.map((group, index) => {
-                const totalChapters = 20; // Placeholder
+                const totalChapters = 20;
                 const progress = Math.round((group.current_chapter / totalChapters) * 100);
+                const isMember = memberships?.includes(group.id);
 
                 return (
                   <div
@@ -85,6 +120,11 @@ const Groups = () => {
                               {group.name}
                               {group.is_private && (
                                 <Lock className="w-3.5 h-3.5 text-muted-foreground" />
+                              )}
+                              {isMember && (
+                                <span className="text-xs bg-primary/20 text-primary px-2 py-0.5 rounded-full">
+                                  Member
+                                </span>
                               )}
                             </h3>
                             <p className="text-sm text-muted-foreground mt-0.5">
@@ -113,18 +153,33 @@ const Groups = () => {
                     </div>
 
                     <div className="flex gap-2 mt-4">
-                      <Button
-                        variant="default"
-                        size="sm"
-                        className="flex-1"
-                        onClick={() => handleJoinGroup(group.id)}
-                        disabled={joinGroup.isPending}
-                      >
-                        Join Group
-                      </Button>
-                      <Button variant="soft" size="sm" className="flex-1">
-                        View Details
-                      </Button>
+                      {isMember ? (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="flex-1 gap-1"
+                          onClick={() => handleLeaveGroup(group.id)}
+                          disabled={leaveGroup.isPending}
+                        >
+                          <LogOut className="w-3.5 h-3.5" />
+                          Leave
+                        </Button>
+                      ) : (
+                        <Button
+                          variant="default"
+                          size="sm"
+                          className="flex-1"
+                          onClick={() => handleJoinGroup(group.id)}
+                          disabled={joinGroup.isPending}
+                        >
+                          Join Group
+                        </Button>
+                      )}
+                      <Link to={`/groups/${group.id}`} className="flex-1">
+                        <Button variant="soft" size="sm" className="w-full">
+                          View Details
+                        </Button>
+                      </Link>
                     </div>
                   </div>
                 );
