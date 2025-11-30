@@ -9,10 +9,13 @@ import Index from "./pages/Index";
 import Library from "./pages/Library";
 import ReadingPage from "./pages/ReadingPage";
 import Discussions from "./pages/Discussions";
+import DiscussionDetail from "./pages/DiscussionDetail";
 import Groups from "./pages/Groups";
+import GroupDetail from "./pages/GroupDetail";
 import Profile from "./pages/Profile";
 import Vocabulary from "./pages/Vocabulary";
 import AudioRooms from "./pages/AudioRooms";
+import ExpertSessions from "./pages/ExpertSessions";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 
@@ -71,7 +74,7 @@ const App = () => (
               path="/discussions/:id"
               element={
                 <ProtectedRoute>
-                  <Discussions />
+                  <DiscussionDetail />
                 </ProtectedRoute>
               }
             />
@@ -80,6 +83,22 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <Groups />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/groups/:id"
+              element={
+                <ProtectedRoute>
+                  <GroupDetail />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/expert-sessions"
+              element={
+                <ProtectedRoute>
+                  <ExpertSessions />
                 </ProtectedRoute>
               }
             />
