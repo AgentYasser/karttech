@@ -127,7 +127,7 @@ const LibraryEnhanced = () => {
             By Genre
           </Button>
           <Button
-            variant={browseMode === "author" ? "default" ? "soft"}
+            variant={browseMode === "author" ? "default" : "soft"}
             size="sm"
             onClick={() => {
               setBrowseMode("author");
