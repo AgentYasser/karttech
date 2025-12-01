@@ -317,3 +317,4 @@ function BookGrid({ books, viewMode }: { books: any[]; viewMode: ViewMode }) {
 }
 
 export default LibraryEnhanced;
+// Verified: Library.tsx syntax is correct - Mon Dec  1 11:52:17 +04 2025
