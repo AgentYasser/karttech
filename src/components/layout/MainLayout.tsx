@@ -8,10 +8,17 @@ interface MainLayoutProps {
   hideNav?: boolean;
 }
 
+import { NewsTicker } from "@/components/analytics/NewsTicker";
+
 export function MainLayout({ children, hideHeader, hideNav }: MainLayoutProps) {
   return (
     <div className="min-h-screen bg-background">
-      {!hideHeader && <Header />}
+      {!hideHeader && (
+        <>
+          <NewsTicker />
+          <Header />
+        </>
+      )}
       <main className={`${!hideNav ? "pb-20" : ""}`}>
         {children}
       </main>

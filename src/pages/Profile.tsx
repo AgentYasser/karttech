@@ -22,6 +22,7 @@ import { Progress } from "@/components/ui/progress";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserAchievements } from "@/hooks/useAchievements";
 import { cn } from "@/lib/utils";
+import { PersonalStatsCard } from "@/components/analytics/PersonalStatsCard";
 
 const levelThresholds: Record<string, { min: number; max: number }> = {
   beginner: { min: 0, max: 500 },
@@ -38,13 +39,13 @@ const Profile = () => {
   const userLevel = profile?.level || "beginner";
   const userPoints = profile?.points || 0;
   const currentLevel = levelThresholds[userLevel] || levelThresholds.beginner;
-  
+
   const nextLevelEntry = Object.entries(levelThresholds).find(
     ([_, threshold]) => threshold.min > currentLevel.max
   );
-  
-  const levelProgress = currentLevel.max === Infinity 
-    ? 100 
+
+  const levelProgress = currentLevel.max === Infinity
+    ? 100
     : Math.min(((userPoints - currentLevel.min) / (currentLevel.max - currentLevel.min)) * 100, 100);
 
   const handleSignOut = async () => {
@@ -126,6 +127,11 @@ const Profile = () => {
             </span>
             <span className="text-xs text-muted-foreground">Day Streak</span>
           </div>
+        </div>
+
+        {/* Detailed Stats */}
+        <div className="animate-fade-up animation-delay-200">
+          <PersonalStatsCard />
         </div>
 
         {/* Achievements */}

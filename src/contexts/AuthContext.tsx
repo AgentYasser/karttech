@@ -16,6 +16,7 @@ interface Profile {
   avatar_url: string | null;
   subscription_tier: string;
   last_login_date: string | null;
+  role?: 'admin' | 'moderator' | 'member';
 }
 
 interface AuthContextType {

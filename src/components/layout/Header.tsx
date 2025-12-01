@@ -8,6 +8,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { NotificationsPopover } from "@/components/notifications/NotificationsPopover";
 
 export function Header() {
   const { profile, signOut } = useAuth();
@@ -35,11 +36,8 @@ export function Header() {
               {(profile?.points || 0).toLocaleString()}
             </span>
           </Button>
-          
-          <Button variant="ghost" size="icon" className="relative">
-            <Bell className="w-5 h-5" />
-            <span className="absolute top-1 right-1 w-2 h-2 bg-destructive rounded-full" />
-          </Button>
+
+          <NotificationsPopover />
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>

@@ -7,19 +7,25 @@
 @layer base {
   :root {
     /* Read With Us Color Palette - Soft & Inviting */
-    --background: 36 33% 96%; /* #FAF0E6 Warm Beige */
-    --foreground: 0 0% 29%; /* #4A4A4A Dark Gray */
+    --background: 36 33% 96%;
+    /* #FAF0E6 Warm Beige */
+    --foreground: 0 0% 29%;
+    /* #4A4A4A Dark Gray */
 
-    --card: 60 23% 91%; /* #F5F5DC Soft Cream */
-    --card-foreground: 0 0% 17%; /* #2C2C2C Soft Black */
+    --card: 60 23% 91%;
+    /* #F5F5DC Soft Cream */
+    --card-foreground: 0 0% 17%;
+    /* #2C2C2C Soft Black */
 
     --popover: 36 33% 96%;
     --popover-foreground: 0 0% 29%;
 
-    --primary: 210 69% 95%; /* #E6F3FF Soft Blue */
+    --primary: 210 69% 95%;
+    /* #E6F3FF Soft Blue */
     --primary-foreground: 0 0% 17%;
 
-    --secondary: 125 33% 94%; /* #E8F5E9 Gentle Green */
+    --secondary: 125 33% 94%;
+    /* #E8F5E9 Gentle Green */
     --secondary-foreground: 0 0% 17%;
 
     --muted: 36 15% 89%;
@@ -47,16 +53,16 @@
     --dark-gray: 0 0% 29%;
     --soft-black: 0 0% 17%;
     --warm-gray: 0 0% 83%;
-    
+
     /* Gradients */
     --gradient-warm: linear-gradient(135deg, hsl(var(--warm-beige)) 0%, hsl(var(--soft-cream)) 100%);
     --gradient-reading: linear-gradient(180deg, hsl(36 33% 98%) 0%, hsl(36 33% 94%) 100%);
-    
+
     /* Shadows */
     --shadow-soft: 0 2px 8px hsl(0 0% 0% / 0.04);
     --shadow-card: 0 4px 16px hsl(0 0% 0% / 0.06);
     --shadow-hover: 0 8px 24px hsl(0 0% 0% / 0.08);
-    
+
     /* Typography */
     --font-reading: 'Libre Baskerville', Georgia, serif;
     --font-ui: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -170,6 +176,7 @@
       opacity: 0;
       transform: translateY(20px);
     }
+
     to {
       opacity: 1;
       transform: translateY(0);
@@ -177,18 +184,24 @@
   }
 
   @keyframes float {
-    0%, 100% {
+
+    0%,
+    100% {
       transform: translateY(0);
     }
+
     50% {
       transform: translateY(-6px);
     }
   }
 
   @keyframes pulse-soft {
-    0%, 100% {
+
+    0%,
+    100% {
       opacity: 1;
     }
+
     50% {
       opacity: 0.7;
     }
@@ -220,5 +233,52 @@
 
   .animation-delay-400 {
     animation-delay: 400ms;
+  }
+
+  /* Celebration animations */
+  @keyframes confetti {
+    0% {
+      transform: translateY(0) rotate(0deg);
+      opacity: 1;
+    }
+
+    100% {
+      transform: translateY(100vh) rotate(720deg);
+      opacity: 0;
+    }
+  }
+
+  @keyframes bounce-slow {
+
+    0%,
+    100% {
+      transform: translateY(0) scale(1);
+    }
+
+    50% {
+      transform: translateY(-20px) scale(1.1);
+    }
+  }
+
+  .animate-confetti {
+    animation: confetti linear infinite;
+  }
+
+  .animate-bounce-slow {
+    animation: bounce-slow 2s ease-in-out infinite;
+  }
+
+  @keyframes marquee {
+    0% {
+      transform: translateX(100%);
+    }
+
+    100% {
+      transform: translateX(-100%);
+    }
+  }
+
+  .animate-marquee {
+    animation: marquee 20s linear infinite;
   }
 }

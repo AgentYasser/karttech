@@ -1,8 +1,9 @@
-import { Users, Plus, Lock, Loader2, LogOut } from "lucide-react";
+import { Users, Plus, Lock, Loader2, LogOut, Search, Sparkles } from "lucide-react";
 import { Link } from "react-router-dom";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
+import { Input } from "@/components/ui/input";
 import { useGroups, useJoinGroup, useLeaveGroup } from "@/hooks/useGroups";
 import { useToast } from "@/hooks/use-toast";
 import { CreateGroupDialog } from "@/components/groups/CreateGroupDialog";
@@ -10,6 +11,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useAwardPoints } from "@/hooks/usePoints";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useState } from "react";
+import { Badge } from "@/components/ui/badge";
 
 const Groups = () => {
   const { data: groups, isLoading } = useGroups();
@@ -18,6 +21,7 @@ const Groups = () => {
   const { toast } = useToast();
   const { user } = useAuth();
   const awardPoints = useAwardPoints();
+  const [search, setSearch] = useState("");
 
   // Get user's memberships
   const { data: memberships } = useQuery({
@@ -67,11 +71,16 @@ const Groups = () => {
     }
   };
 
+  const filteredGroups = groups?.filter(group =>
+    group.name.toLowerCase().includes(search.toLowerCase()) ||
+    group.books?.title.toLowerCase().includes(search.toLowerCase())
+  );
+
   return (
     <MainLayout>
       <div className="px-4 py-6 max-w-4xl mx-auto">
         {/* Header */}
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
           <div>
             <h1 className="font-reading text-2xl font-semibold text-card-foreground">
               Reading Groups
@@ -81,12 +90,23 @@ const Groups = () => {
             </p>
           </div>
 
-          <CreateGroupDialog>
-            <Button className="gap-2">
-              <Plus className="w-4 h-4" />
-              Create
-            </Button>
-          </CreateGroupDialog>
+          <div className="flex items-center gap-2 w-full md:w-auto">
+            <div className="relative flex-1 md:w-64">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                placeholder="Search groups..."
+                className="pl-9"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+            </div>
+            <CreateGroupDialog>
+              <Button className="gap-2 shrink-0">
+                <Plus className="w-4 h-4" />
+                <span className="hidden sm:inline">Create</span>
+              </Button>
+            </CreateGroupDialog>
+          </div>
         </div>
 
         {isLoading ? (
@@ -97,7 +117,7 @@ const Groups = () => {
           <>
             {/* Groups List */}
             <div className="space-y-4">
-              {groups?.map((group, index) => {
+              {filteredGroups?.map((group, index) => {
                 const totalChapters = 20;
                 const progress = Math.round((group.current_chapter / totalChapters) * 100);
                 const isMember = memberships?.includes(group.id);
@@ -125,6 +145,13 @@ const Groups = () => {
                                 <span className="text-xs bg-primary/20 text-primary px-2 py-0.5 rounded-full">
                                   Member
                                 </span>
+                              )}
+                              {/* New Badge */}
+                              {new Date(group.created_at) > new Date(Date.now() - 24 * 60 * 60 * 1000) && (
+                                <Badge variant="secondary" className="h-5 px-1.5 text-[10px] gap-1 bg-green-100 text-green-700 hover:bg-green-100">
+                                  <Sparkles className="w-2.5 h-2.5" />
+                                  New
+                                </Badge>
                               )}
                             </h3>
                             <p className="text-sm text-muted-foreground mt-0.5">

@@ -42,9 +42,9 @@ export function useGroups() {
           books:book_id (id, title, author)
         `)
         .order("created_at", { ascending: false });
-      
+
       if (error) throw error;
-      
+
       // Get member counts
       const groupsWithCounts = await Promise.all(
         (data || []).map(async (group) => {
@@ -52,11 +52,11 @@ export function useGroups() {
             .from("group_members")
             .select("*", { count: "exact", head: true })
             .eq("group_id", group.id);
-          
+
           return { ...group, member_count: count || 0 };
         })
       );
-      
+
       return groupsWithCounts as ReadingGroup[];
     },
   });
@@ -67,7 +67,7 @@ export function useGroupMembers(groupId: string | undefined) {
     queryKey: ["group_members", groupId],
     queryFn: async () => {
       if (!groupId) return [];
-      
+
       const { data, error } = await supabase
         .from("group_members")
         .select(`
@@ -75,7 +75,7 @@ export function useGroupMembers(groupId: string | undefined) {
           profiles:user_id (username)
         `)
         .eq("group_id", groupId);
-      
+
       if (error) throw error;
       return data as GroupMember[];
     },
@@ -86,7 +86,7 @@ export function useGroupMembers(groupId: string | undefined) {
 export function useCreateGroup() {
   const queryClient = useQueryClient();
   const { user } = useAuth();
-  
+
   return useMutation({
     mutationFn: async ({
       name,
@@ -102,7 +102,7 @@ export function useCreateGroup() {
       maxMembers?: number;
     }) => {
       if (!user) throw new Error("Not authenticated");
-      
+
       // Create group
       const { data: group, error: groupError } = await supabase
         .from("reading_groups")
@@ -112,13 +112,13 @@ export function useCreateGroup() {
           book_id: bookId,
           created_by: user.id,
           is_private: isPrivate || false,
-          max_members: maxMembers || 50,
+          max_members: maxMembers || 15,
         })
         .select()
         .single();
-      
+
       if (groupError) throw groupError;
-      
+
       // Add creator as admin
       const { error: memberError } = await supabase
         .from("group_members")
@@ -127,9 +127,9 @@ export function useCreateGroup() {
           user_id: user.id,
           role: "admin",
         });
-      
+
       if (memberError) throw memberError;
-      
+
       return group;
     },
     onSuccess: () => {
@@ -141,22 +141,21 @@ export function useCreateGroup() {
 export function useJoinGroup() {
   const queryClient = useQueryClient();
   const { user } = useAuth();
-  
+
   return useMutation({
     mutationFn: async (groupId: string) => {
       if (!user) throw new Error("Not authenticated");
-      
+
       const { data, error } = await supabase
-        .from("group_members")
-        .insert({
-          group_id: groupId,
-          user_id: user.id,
-          role: "member",
-        })
-        .select()
-        .single();
-      
+        .rpc('join_group', { group_id_param: groupId });
+
       if (error) throw error;
+
+      // Check success from RPC response
+      if (data && !(data as any).success) {
+        throw new Error((data as any).message || "Failed to join group");
+      }
+
       return data;
     },
     onSuccess: (_, groupId) => {
@@ -169,17 +168,17 @@ export function useJoinGroup() {
 export function useLeaveGroup() {
   const queryClient = useQueryClient();
   const { user } = useAuth();
-  
+
   return useMutation({
     mutationFn: async (groupId: string) => {
       if (!user) throw new Error("Not authenticated");
-      
+
       const { error } = await supabase
         .from("group_members")
         .delete()
         .eq("group_id", groupId)
         .eq("user_id", user.id);
-      
+
       if (error) throw error;
     },
     onSuccess: (_, groupId) => {

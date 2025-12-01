@@ -1,5 +1,6 @@
+// Enhanced Library component with literary categorization
 import { useState } from "react";
-import { Search, Grid, List, Loader2 } from "lucide-react";
+import { Search, Grid, List, Loader2, BookOpen } from "lucide-react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,35 +8,69 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useBooks } from "@/hooks/useBooks";
 import { BookCard } from "@/components/library/BookCard";
 import { BookListItem } from "@/components/library/BookListItem";
-import { AuthorCatalogue } from "@/components/library/AuthorCatalogue";
+import { BookSuggestionModal } from "@/components/library/BookSuggestionModal";
+import { cn } from "@/lib/utils";
 
-type ContentFilter = "all" | "novel" | "play" | "poem";
+type ViewMode = "grid" | "list";
+type BrowseMode = "category" | "literary" | "author";
 
-const Library = () => {
+// Literary categories for navigation
+const LITERARY_CATEGORIES = [
+  "All",
+  "Literary Fiction",
+  "Science Fiction & Fantasy",
+  "Mystery & Thriller",
+  "Romance",
+  "Historical Fiction",
+  "Poetry & Drama",
+  "Non-Fiction",
+  "Biography & Memoir",
+  "Philosophy & Essays",
+];
+
+const LibraryEnhanced = () => {
   const [search, setSearch] = useState("");
-  const [contentFilter, setContentFilter] = useState<ContentFilter>("all");
-  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const [viewMode, setViewMode] = useState<ViewMode>("grid");
+  const [browseMode, setBrowseMode] = useState<BrowseMode>("category");
+  const [selectedLiteraryCategory, setSelectedLiteraryCategory] = useState("All");
   const [selectedAuthor, setSelectedAuthor] = useState<string | null>(null);
-  
+
   const { data: books, isLoading } = useBooks();
 
-  const filterBooks = (category: string) => {
+  // Get unique authors
+  const authors = books
+    ? Array.from(new Set(books.map(b => b.author))).sort()
+    : [];
+
+  const filterBooks = (category?: string) => {
     if (!books) return [];
     return books.filter((book) => {
-      const matchesCategory = category === "all" || book.category === category;
-      const matchesContent = contentFilter === "all" || book.content_type === contentFilter;
+      // Category filter (classic/contemporary/subscriber)
+      const matchesCategory = !category || category === "all" || book.category === category;
+
+      // Literary category filter
+      const matchesLiterary =
+        selectedLiteraryCategory === "All" ||
+        book.literary_category === selectedLiteraryCategory ||
+        // Combine Sci-Fi & Fantasy
+        (selectedLiteraryCategory === "Science Fiction & Fantasy" &&
+          (book.literary_category === "Science Fiction" || book.literary_category === "Fantasy")) ||
+        // Combine Poetry & Drama
+        (selectedLiteraryCategory === "Poetry & Drama" &&
+          (book.literary_category === "Poetry" || book.literary_category === "Drama & Plays"));
+
+      // Author filter
+      const matchesAuthor = !selectedAuthor || book.author === selectedAuthor;
+
+      // Search filter
       const matchesSearch =
         search === "" ||
         book.title.toLowerCase().includes(search.toLowerCase()) ||
-        book.author.toLowerCase().includes(search.toLowerCase());
-      const matchesAuthor = !selectedAuthor || book.author.toLowerCase().includes(selectedAuthor.toLowerCase());
-      return matchesCategory && matchesContent && matchesSearch && matchesAuthor;
-    });
-  };
+        book.author.toLowerCase().includes(search.toLowerCase()) ||
+        book.description?.toLowerCase().includes(search.toLowerCase());
 
-  const handleAuthorSelect = (author: string) => {
-    setSelectedAuthor(selectedAuthor === author ? null : author);
-    setSearch("");
+      return matchesCategory && matchesLiterary && matchesAuthor && matchesSearch;
+    });
   };
 
   if (isLoading) {
@@ -48,119 +83,237 @@ const Library = () => {
     );
   }
 
+  const filteredBooks = filterBooks();
+
   return (
     <MainLayout>
-      <div className="px-4 py-6 max-w-6xl mx-auto">
-        <div className="flex gap-6">
-          {/* Sidebar with Author Catalogue */}
-          <aside className="hidden md:block w-64 shrink-0">
-            <AuthorCatalogue 
-              onAuthorSelect={handleAuthorSelect}
-              selectedAuthor={selectedAuthor}
-            />
-          </aside>
-
-          {/* Main Content */}
-          <div className="flex-1 min-w-0">
-            {/* Search and Filters */}
-            <div className="space-y-4 mb-6">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-                <Input
-                  placeholder={selectedAuthor ? `Search ${selectedAuthor}'s works...` : "Search books..."}
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  className="pl-10 bg-card border-border"
-                />
-              </div>
-
-              {selectedAuthor && (
-                <div className="flex items-center gap-2">
-                  <span className="text-sm text-muted-foreground">Filtering by:</span>
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    onClick={() => setSelectedAuthor(null)}
-                    className="gap-1"
-                  >
-                    {selectedAuthor}
-                    <span className="text-xs">×</span>
-                  </Button>
-                </div>
-              )}
-
-              <div className="flex items-center justify-between">
-                <div className="flex gap-2 overflow-x-auto">
-                  {(["all", "novel", "play", "poem"] as ContentFilter[]).map((filter) => (
-                    <Button
-                      key={filter}
-                      variant={contentFilter === filter ? "default" : "soft"}
-                      size="sm"
-                      onClick={() => setContentFilter(filter)}
-                      className="capitalize shrink-0"
-                    >
-                      {filter === "all" ? "All Types" : `${filter}s`}
-                    </Button>
-                  ))}
-                </div>
-
-                <div className="flex gap-1 ml-2">
-                  <Button
-                    variant={viewMode === "grid" ? "default" : "ghost"}
-                    size="icon"
-                    onClick={() => setViewMode("grid")}
-                  >
-                    <Grid className="w-4 h-4" />
-                  </Button>
-                  <Button
-                    variant={viewMode === "list" ? "default" : "ghost"}
-                    size="icon"
-                    onClick={() => setViewMode("list")}
-                  >
-                    <List className="w-4 h-4" />
-                  </Button>
-                </div>
-              </div>
+      <div className="px-4 py-6 max-w-7xl mx-auto">
+        {/* Header */}
+        <div className="mb-8">
+          <div className="flex justify-between items-start">
+            <div>
+              <h1 className="text-3xl font-reading font-bold text-card-foreground mb-2">
+                📚 Library
+              </h1>
+              <p className="text-muted-foreground">
+                {books?.length || 0} books across classic and contemporary literature
+              </p>
             </div>
-
-            {/* Category Tabs */}
-            <Tabs defaultValue="all" className="space-y-6">
-              <TabsList className="w-full bg-card border border-border">
-                <TabsTrigger value="all" className="flex-1">All</TabsTrigger>
-                <TabsTrigger value="classic" className="flex-1">Classic</TabsTrigger>
-                <TabsTrigger value="contemporary" className="flex-1">Contemporary</TabsTrigger>
-                <TabsTrigger value="subscriber" className="flex-1">Community</TabsTrigger>
-              </TabsList>
-
-              {["all", "classic", "contemporary", "subscriber"].map((category) => (
-                <TabsContent key={category} value={category} className="mt-6">
-                  {viewMode === "grid" ? (
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                      {filterBooks(category).map((book) => (
-                        <BookCard key={book.id} book={book} />
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="space-y-3">
-                      {filterBooks(category).map((book) => (
-                        <BookListItem key={book.id} book={book} />
-                      ))}
-                    </div>
-                  )}
-
-                  {filterBooks(category).length === 0 && (
-                    <div className="text-center py-12 text-muted-foreground">
-                      No books found matching your criteria.
-                    </div>
-                  )}
-                </TabsContent>
-              ))}
-            </Tabs>
+            <BookSuggestionModal />
           </div>
         </div>
+
+        {/* Browse Mode Selector */}
+        <div className="mb-6 flex gap-2">
+          <Button
+            variant={browseMode === "category" ? "default" : "soft"}
+            size="sm"
+            onClick={() => {
+              setBrowseMode("category");
+              setSelectedLiteraryCategory("All");
+              setSelectedAuthor(null);
+            }}
+          >
+            By Era
+          </Button>
+          <Button
+            variant={browseMode === "literary" ? "default" : "soft"}
+            size="sm"
+            onClick={() => {
+              setBrowseMode("literary");
+              setSelectedAuthor(null);
+            }}
+          >
+            By Genre
+          </Button>
+          <Button
+            variant={browseMode === "author" ? "default" ? "soft"}
+            size="sm"
+            onClick={() => {
+              setBrowseMode("author");
+              setSelectedLiteraryCategory("All");
+            }}
+          >
+            By Author
+          </Button>
+        </div>
+
+        {/* Search and View Controls */}
+        <div className="space-y-4 mb-6">
+          <div className="flex gap-3">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+              <Input
+                placeholder="Search by title, author, or description..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="pl-10 bg-card border-border"
+              />
+            </div>
+
+            <div className="flex gap-1">
+              <Button
+                variant={viewMode === "grid" ? "default" : "ghost"}
+                size="icon"
+                onClick={() => setViewMode("grid")}
+              >
+                <Grid className="w-4 h-4" />
+              </Button>
+              <Button
+                variant={viewMode === "list" ? "default" : "ghost"}
+                size="icon"
+                onClick={() => setViewMode("list")}
+              >
+                <List className="w-4 h-4" />
+              </Button>
+            </div>
+          </div>
+
+          {/* Active Filters */}
+          {(selectedAuthor || selectedLiteraryCategory !== "All") && (
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-sm text-muted-foreground">Filters:</span>
+              {selectedAuthor && (
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => setSelectedAuthor(null)}
+                  className="gap-1"
+                >
+                  {selectedAuthor}
+                  <span className="text-xs">×</span>
+                </Button>
+              )}
+              {selectedLiteraryCategory !== "All" && (
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => setSelectedLiteraryCategory("All")}
+                  className="gap-1"
+                >
+                  {selectedLiteraryCategory}
+                  <span className="text-xs">×</span>
+                </Button>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Browse by Category (Era) */}
+        {browseMode === "category" && (
+          <Tabs defaultValue="all" className="space-y-6">
+            <TabsList className="w-full bg-card border border-border">
+              <TabsTrigger value="all" className="flex-1">All</TabsTrigger>
+              <TabsTrigger value="classic" className="flex-1">Classic</TabsTrigger>
+              <TabsTrigger value="contemporary" className="flex-1">Contemporary</TabsTrigger>
+              <TabsTrigger value="subscriber" className="flex-1">Community</TabsTrigger>
+            </TabsList>
+
+            {["all", "classic", "contemporary", "subscriber"].map((category) => (
+              <TabsContent key={category} value={category}>
+                <BookGrid books={filterBooks(category)} viewMode={viewMode} />
+              </TabsContent>
+            ))}
+          </Tabs>
+        )}
+
+        {/* Browse by Literary Category (Genre) */}
+        {browseMode === "literary" && (
+          <div className="space-y-6">
+            {/* Literary category pills */}
+            <div className="flex flex-wrap gap-2">
+              {LITERARY_CATEGORIES.map((cat) => (
+                <Button
+                  key={cat}
+                  variant={selectedLiteraryCategory === cat ? "default" : "soft"}
+                  size="sm"
+                  onClick={() => setSelectedLiteraryCategory(cat)}
+                  className="whitespace-nowrap"
+                >
+                  {cat}
+                </Button>
+              ))}
+            </div>
+
+            <BookGrid books={filteredBooks} viewMode={viewMode} />
+          </div>
+        )}
+
+        {/* Browse by Author */}
+        {browseMode === "author" && (
+          <div className="space-y-6">
+            {/* Author grid */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+              {authors.map((author) => {
+                const authorBooks = books?.filter(b => b.author === author) || [];
+                return (
+                  <button
+                    key={author}
+                    onClick={() => setSelectedAuthor(selectedAuthor === author ? null : author)}
+                    className={cn(
+                      "p-4 rounded-xl border-2 text-left transition-all hover:shadow-lg",
+                      selectedAuthor === author
+                        ? "border-primary bg-primary/5"
+                        : "border-border bg-card hover:border-primary/50"
+                    )}
+                  >
+                    <div className="flex items-start gap-2 mb-2">
+                      <BookOpen className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+                      <p className="font-medium text-sm text-card-foreground line-clamp-2">
+                        {author}
+                      </p>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      {authorBooks.length} {authorBooks.length === 1 ? 'book' : 'books'}
+                    </p>
+                  </button>
+                );
+              })}
+            </div>
+
+            {selectedAuthor && (
+              <div className="space-y-3">
+                <h2 className="text-xl font-reading font-semibold">
+                  Books by {selectedAuthor}
+                </h2>
+                <BookGrid books={filteredBooks} viewMode={viewMode} />
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </MainLayout>
   );
 };
 
-export default Library;
+// Helper component for book display
+function BookGrid({ books, viewMode }: { books: any[]; viewMode: ViewMode }) {
+  if (books.length === 0) {
+    return (
+      <div className="text-center py-12 text-muted-foreground">
+        <BookOpen className="w-12 h-12 mx-auto mb-3 opacity-50" />
+        <p>No books found matching your criteria.</p>
+      </div>
+    );
+  }
+
+  if (viewMode === "grid") {
+    return (
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+        {books.map((book) => (
+          <BookCard key={book.id} book={book} />
+        ))}
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      {books.map((book) => (
+        <BookListItem key={book.id} book={book} />
+      ))}
+    </div>
+  );
+}
+
+export default LibraryEnhanced;
