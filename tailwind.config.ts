@@ -92,6 +92,10 @@ export default {
         },
         "float": {
           "0%, 100%": { transform: "translateY(0)" },
+        "marquee": {
+          "0%": { transform: "translateX(0%)" },
+          "100%": { transform: "translateX(-100%)" },
+        },
           "50%": { transform: "translateY(-6px)" },
         },
       },
@@ -100,6 +104,7 @@ export default {
         "accordion-up": "accordion-up 0.2s ease-out",
         "fade-up": "fade-up 0.6s ease-out forwards",
         "float": "float 3s ease-in-out infinite",
+        "marquee": "marquee 60s linear infinite",
       },
       boxShadow: {
         soft: "0 2px 8px hsl(0 0% 0% / 0.04)",
