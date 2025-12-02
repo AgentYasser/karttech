@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { 
-  Mic, MicOff, PhoneOff, MessageSquare, Users, X, Wifi, WifiOff 
+  Mic, MicOff, PhoneOff, MessageSquare, Users, X, Wifi, WifiOff, Loader2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ParticipantCard } from "./ParticipantCard";
@@ -149,30 +149,37 @@ export function AudioRoom({ roomId }: AudioRoomProps) {
 
   if (roomLoading) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full" />
+      <div className="flex items-center justify-center min-h-[60vh] px-4">
+        <div className="text-center">
+          <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full mx-auto mb-4" />
+          <p className="text-muted-foreground">Loading room...</p>
+        </div>
       </div>
     );
   }
 
   if (!room) {
     return (
-      <div className="text-center py-12">
-        <p className="text-muted-foreground">Room not found</p>
-        <Button onClick={() => navigate("/audio-rooms")} className="mt-4">
-          Back to Rooms
-        </Button>
+      <div className="flex items-center justify-center min-h-[60vh] px-4">
+        <div className="text-center max-w-md">
+          <p className="text-muted-foreground mb-4">Room not found</p>
+          <Button onClick={() => navigate("/audio-rooms")} variant="default">
+            Back to Rooms
+          </Button>
+        </div>
       </div>
     );
   }
 
   if (room.status === "ended") {
     return (
-      <div className="text-center py-12">
-        <p className="text-muted-foreground">This discussion has ended</p>
-        <Button onClick={() => navigate("/audio-rooms")} className="mt-4">
-          Back to Rooms
-        </Button>
+      <div className="flex items-center justify-center min-h-[60vh] px-4">
+        <div className="text-center max-w-md">
+          <p className="text-muted-foreground mb-4">This discussion has ended</p>
+          <Button onClick={() => navigate("/audio-rooms")} variant="default">
+            Back to Rooms
+          </Button>
+        </div>
       </div>
     );
   }
@@ -180,42 +187,66 @@ export function AudioRoom({ roomId }: AudioRoomProps) {
   // Join screen
   if (!hasJoined) {
     return (
-      <div className="max-w-md mx-auto text-center py-12 px-4">
-        <h1 className="font-reading text-2xl font-semibold text-card-foreground mb-2">
-          {room.title}
-        </h1>
-        {room.books?.title && (
-          <p className="text-muted-foreground mb-4">
-            Discussing: {room.books.title}
+      <div className="flex items-center justify-center min-h-[60vh] px-4">
+        <div className="max-w-md w-full text-center">
+          <h1 className="font-reading text-2xl font-semibold text-card-foreground mb-2">
+            {room.title}
+          </h1>
+          {room.description && (
+            <p className="text-muted-foreground mb-4">{room.description}</p>
+          )}
+          {room.books?.title && (
+            <p className="text-muted-foreground mb-4">
+              Discussing: {room.books.title}
+            </p>
+          )}
+          <p className="text-sm text-muted-foreground mb-6">
+            {participants?.length || 0} participant{participants?.length !== 1 ? 's' : ''} in this discussion
           </p>
-        )}
-        <p className="text-sm text-muted-foreground mb-6">
-          {participants?.length || 0} participants in this discussion
-        </p>
-        <Button onClick={handleJoin} size="lg" className="gap-2">
-          <Mic className="w-5 h-5" />
-          Join Discussion
-        </Button>
+          <Button 
+            onClick={handleJoin} 
+            size="lg" 
+            className="gap-2"
+            disabled={joinRoom.isPending}
+          >
+            {joinRoom.isPending ? (
+              <>
+                <Loader2 className="w-5 h-5 animate-spin" />
+                Joining...
+              </>
+            ) : (
+              <>
+                <Mic className="w-5 h-5" />
+                Join Discussion
+              </>
+            )}
+          </Button>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col h-[calc(100vh-120px)]">
+    <div className="flex flex-col h-[calc(100vh-120px)] min-h-[500px]">
       {/* Header */}
-      <div className="px-4 py-3 border-b border-border bg-card">
-        <div className="flex items-center justify-between">
+      <div className="px-4 py-3 border-b border-border bg-card sticky top-0 z-10">
+        <div className="flex items-center justify-between gap-2">
           <div className="flex-1 min-w-0">
             <h1 className="font-reading text-lg font-semibold text-card-foreground truncate">
               {room.title}
             </h1>
+            {room.description && (
+              <p className="text-xs text-muted-foreground truncate mt-0.5">
+                {room.description}
+              </p>
+            )}
             {room.books?.title && (
-              <p className="text-sm text-muted-foreground truncate">
-                {room.books.title}
+              <p className="text-sm text-muted-foreground truncate mt-0.5">
+                📚 {room.books.title}
               </p>
             )}
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 shrink-0">
             <span className="text-xs bg-primary/10 text-primary px-2 py-1 rounded-full flex items-center gap-1">
               {isConnected ? (
                 <Wifi className="w-3 h-3" />
@@ -228,6 +259,7 @@ export function AudioRoom({ roomId }: AudioRoomProps) {
               variant="ghost"
               size="icon"
               onClick={() => setShowChat(!showChat)}
+              title={showChat ? "Hide chat" : "Show chat"}
             >
               <MessageSquare className="w-5 h-5" />
             </Button>
@@ -245,23 +277,30 @@ export function AudioRoom({ roomId }: AudioRoomProps) {
           <div className="flex items-center gap-2 mb-4">
             <Users className="w-5 h-5 text-muted-foreground" />
             <span className="text-sm text-muted-foreground">
-              {participants?.length || 0} Participants
+              {participants?.length || 0} Participant{participants?.length !== 1 ? 's' : ''}
             </span>
           </div>
 
-          <div className="grid gap-3">
-            {participants?.map((participant) => (
-              <ParticipantCard
-                key={participant.id}
-                participant={participant}
-                currentUserId={user?.id}
-                isCurrentUserModerator={isModerator}
-                roomId={roomId}
-                onToggleMute={handleMuteParticipant}
-                onPromote={handlePromote}
-              />
-            ))}
-          </div>
+          {participants && participants.length > 0 ? (
+            <div className="grid gap-3">
+              {participants.map((participant) => (
+                <ParticipantCard
+                  key={participant.id}
+                  participant={participant}
+                  currentUserId={user?.id}
+                  isCurrentUserModerator={isModerator}
+                  roomId={roomId}
+                  onToggleMute={handleMuteParticipant}
+                  onPromote={handlePromote}
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-12">
+              <Users className="w-12 h-12 text-muted-foreground mx-auto mb-4 opacity-50" />
+              <p className="text-muted-foreground">No participants yet</p>
+            </div>
+          )}
         </div>
 
         {/* Chat Sidebar */}

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 import {
   Dialog,
@@ -28,6 +29,7 @@ interface CreateGroupDialogProps {
 }
 
 export function CreateGroupDialog({ children }: CreateGroupDialogProps) {
+  const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
@@ -53,7 +55,7 @@ export function CreateGroupDialog({ children }: CreateGroupDialogProps) {
     }
 
     try {
-      await createGroup.mutateAsync({
+      const group = await createGroup.mutateAsync({
         name: name.trim(),
         description: description.trim() || undefined,
         bookId: bookId || undefined,
@@ -73,6 +75,11 @@ export function CreateGroupDialog({ children }: CreateGroupDialogProps) {
       setIsPrivate(false);
       setMaxMembers("20");
       setReadingGoal("");
+
+      // Navigate to the new group detail page
+      if (group?.id) {
+        navigate(`/groups/${group.id}`);
+      }
     } catch (error: any) {
       toast({
         title: "Error",
