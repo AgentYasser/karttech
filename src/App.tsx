@@ -29,6 +29,7 @@ const Admin = lazy(() => import("./pages/Admin"));
 const Privacy = lazy(() => import("./pages/Privacy"));
 const Terms = lazy(() => import("./pages/Terms"));
 const GDPR = lazy(() => import("./pages/GDPR"));
+const SetupBooks = lazy(() => import("./pages/SetupBooks"));
 
 const queryClient = new QueryClient();
 
@@ -187,6 +188,14 @@ function AppContent() {
                   <ProtectedRoute>
                     <GDPR />
                   </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/setup-books"
+                element={
+                  <AdminRoute>
+                    <SetupBooks />
+                  </AdminRoute>
                 }
               />
               <Route path="*" element={<NotFound />} />
