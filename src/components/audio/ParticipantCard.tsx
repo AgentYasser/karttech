@@ -9,8 +9,9 @@ interface ParticipantCardProps {
   currentUserId: string | undefined;
   isCurrentUserModerator: boolean;
   roomId: string;
-  onToggleMute: (participantId: string, isMuted: boolean) => void;
+  onToggleMute: (participantId: string, muted: boolean) => void;
   onPromote: (participantId: string) => void;
+  moderatorCount?: number; // Current number of moderators (creator + moderators)
 }
 
 export function ParticipantCard({

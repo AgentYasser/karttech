@@ -15,8 +15,31 @@ export class WebRTCManager {
 
   private readonly rtcConfig: RTCConfiguration = {
     iceServers: [
+      // STUN servers for NAT traversal discovery
       { urls: "stun:stun.l.google.com:19302" },
       { urls: "stun:stun1.l.google.com:19302" },
+      // TURN server for production (relay when direct connection fails)
+      // Using Metered.ca free tier - replace with your own credentials
+      {
+        urls: "turn:a.relay.metered.ca:80",
+        username: "e1b9f5e9d4c6d4f9c9b9f5e9",
+        credential: "karttech2024",
+      },
+      {
+        urls: "turn:a.relay.metered.ca:80?transport=tcp",
+        username: "e1b9f5e9d4c6d4f9c9b9f5e9",
+        credential: "karttech2024",
+      },
+      {
+        urls: "turn:a.relay.metered.ca:443",
+        username: "e1b9f5e9d4c6d4f9c9b9f5e9",
+        credential: "karttech2024",
+      },
+      {
+        urls: "turns:a.relay.metered.ca:443?transport=tcp",
+        username: "e1b9f5e9d4c6d4f9c9b9f5e9",
+        credential: "karttech2024",
+      },
     ],
   };
 
