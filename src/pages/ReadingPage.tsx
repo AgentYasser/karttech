@@ -17,8 +17,10 @@ import { useReadingSession, useUpsertReadingSession } from "@/hooks/useReadingSe
 import { useFetchBookContent } from "@/hooks/useImportBooks";
 import { WordLookupDialog } from "@/components/reading/WordLookupDialog";
 import { BookPaywall } from "@/components/reading/BookPaywall";
+import { SubscriptionModal } from "@/components/subscription/SubscriptionModal";
 import { useAwardPoints } from "@/hooks/usePoints";
 import { useHasBookAccess } from "@/hooks/useBookPurchase";
+import { useAuth } from "@/contexts/AuthContext";
 
 const ReadingPage = () => {
   const { bookId } = useParams();
@@ -26,6 +28,8 @@ const ReadingPage = () => {
   const [showDefinition, setShowDefinition] = useState(false);
   const [currentChapterIndex, setCurrentChapterIndex] = useState(0);
   const [lastAwardedChapter, setLastAwardedChapter] = useState<number>(-1);
+  const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
+  const { profile } = useAuth();
 
   const { data: book, isLoading: bookLoading } = useBook(bookId);
   const { data: chapters, isLoading: chaptersLoading, refetch: refetchChapters } = useBookChapters(bookId);
@@ -39,7 +43,14 @@ const ReadingPage = () => {
   const FREE_PREVIEW_CHAPTERS = 1;
   const isPreviewChapter = currentChapterIndex < FREE_PREVIEW_CHAPTERS;
   const hasFullAccess = accessInfo?.hasAccess || false;
+  const isSubscribed = profile?.is_subscribed || false;
   const canReadCurrentChapter = isPreviewChapter || hasFullAccess;
+  
+  // Show subscription prompt after reading first chapter if not subscribed
+  const shouldShowSubscriptionPrompt = 
+    !isSubscribed && 
+    currentChapterIndex >= FREE_PREVIEW_CHAPTERS && 
+    currentChapterIndex < FREE_PREVIEW_CHAPTERS + 1;
 
   // Set initial chapter from session
   useEffect(() => {
@@ -62,7 +73,7 @@ const ReadingPage = () => {
     }
   }, [currentChapterIndex, bookId]);
 
-  const handleWordClick = useCallback((word: string) => {
+  const handleWordDoubleClick = useCallback((word: string) => {
     const cleanWord = word.replace(/[.,!?;:'"]/g, "").toLowerCase();
     if (cleanWord.length > 2) {
       setSelectedWord(cleanWord);
@@ -81,6 +92,12 @@ const ReadingPage = () => {
         return;
       }
       
+      // Show subscription prompt if user is not subscribed and trying to continue reading
+      if (nextChapterRequiresAccess && !isSubscribed && !hasFullAccess) {
+        setShowSubscriptionModal(true);
+        return;
+      }
+      
       // Award points for completing a chapter (only once per chapter)
       if (currentChapterIndex > lastAwardedChapter) {
         awardPoints.mutate({ source: "reading_chapter" });
@@ -88,6 +105,14 @@ const ReadingPage = () => {
       }
       setCurrentChapterIndex(nextChapterIndex);
     }
+  };
+  
+  const handleSubscribe = (plan: "monthly" | "annual") => {
+    // In production, integrate with payment gateway
+    console.log("Subscribing to plan:", plan);
+    setShowSubscriptionModal(false);
+    // After successful subscription, refresh user profile
+    // This would typically be handled by your payment integration
   };
 
   const goToPrevChapter = () => {
@@ -99,12 +124,23 @@ const ReadingPage = () => {
   const handleImportContent = async () => {
     if (!book || !book.gutenberg_id || !bookId) return;
     
-    await fetchContent.mutateAsync({
-      gutenberg_id: book.gutenberg_id,
-      book_id: bookId,
-    });
-    refetchChapters();
+    try {
+      await fetchContent.mutateAsync({
+        gutenberg_id: book.gutenberg_id,
+        book_id: bookId,
+      });
+      refetchChapters();
+    } catch (error) {
+      console.error("Failed to import book:", error);
+    }
   };
+
+  // Auto-import book content if it doesn't exist
+  useEffect(() => {
+    if (book && book.gutenberg_id && bookId && (!chapters || chapters.length === 0) && !fetchContent.isPending) {
+      handleImportContent();
+    }
+  }, [book, bookId, chapters]);
 
   if (bookLoading || chaptersLoading) {
     return (
@@ -180,12 +216,13 @@ const ReadingPage = () => {
                       return (
                         <span
                           key={`${pIndex}-${wIndex}`}
-                          onClick={() => isClickable && handleWordClick(word)}
+                          onDoubleClick={() => isClickable && handleWordDoubleClick(word)}
                           className={
                             isClickable
                               ? "cursor-pointer hover:bg-primary/50 rounded px-0.5 transition-colors"
                               : ""
                           }
+                          title={isClickable ? "Double-click to look up word" : ""}
                         >
                           {word}
                         </span>
@@ -226,34 +263,44 @@ const ReadingPage = () => {
           </>
         ) : (
           <div className="text-center py-12">
-            <p className="text-muted-foreground">No content available for this book yet.</p>
-            {book.gutenberg_id ? (
-              <div className="mt-4">
-                <p className="text-sm text-muted-foreground mb-3">
-                  This book is available on Project Gutenberg.
-                </p>
-                <Button 
-                  onClick={handleImportContent}
-                  disabled={fetchContent.isPending}
-                  className="gap-2"
-                >
-                  {fetchContent.isPending ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      Importing...
-                    </>
-                  ) : (
-                    <>
-                      <Download className="w-4 h-4" />
-                      Import from Gutenberg
-                    </>
-                  )}
-                </Button>
-              </div>
+            {fetchContent.isPending ? (
+              <>
+                <Loader2 className="w-8 h-8 animate-spin text-muted-foreground mx-auto mb-4" />
+                <p className="text-muted-foreground">Importing book content from Project Gutenberg...</p>
+                <p className="text-sm text-muted-foreground mt-2">This may take a moment.</p>
+              </>
             ) : (
-              <p className="text-sm text-muted-foreground mt-2">
-                This book doesn't have content available yet.
-              </p>
+              <>
+                <p className="text-muted-foreground">No content available for this book yet.</p>
+                {book.gutenberg_id ? (
+                  <div className="mt-4">
+                    <p className="text-sm text-muted-foreground mb-3">
+                      This book is available on Project Gutenberg. Import will start automatically.
+                    </p>
+                    <Button 
+                      onClick={handleImportContent}
+                      disabled={fetchContent.isPending}
+                      className="gap-2"
+                    >
+                      {fetchContent.isPending ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          Importing...
+                        </>
+                      ) : (
+                        <>
+                          <Download className="w-4 h-4" />
+                          Import Now
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground mt-2">
+                    This book doesn't have content available yet.
+                  </p>
+                )}
+              </>
             )}
           </div>
         )}
@@ -311,6 +358,14 @@ const ReadingPage = () => {
         bookId={bookId}
         open={showDefinition}
         onOpenChange={setShowDefinition}
+      />
+      
+      {/* Subscription Modal */}
+      <SubscriptionModal
+        isOpen={showSubscriptionModal}
+        onClose={() => setShowSubscriptionModal(false)}
+        onSubscribe={handleSubscribe}
+        feature="reading this book"
       />
     </div>
   );

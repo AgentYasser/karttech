@@ -48,16 +48,20 @@ const LibraryEnhanced = () => {
       // Category filter (classic/contemporary/subscriber)
       const matchesCategory = !category || category === "all" || book.category === category;
 
-      // Literary category filter
+      // Literary category filter - check if book has literary_category field
+      // If not available, we'll use content_type as fallback
+      const bookLiteraryCategory = (book as any).literary_category;
       const matchesLiterary =
         selectedLiteraryCategory === "All" ||
-        book.literary_category === selectedLiteraryCategory ||
+        bookLiteraryCategory === selectedLiteraryCategory ||
         // Combine Sci-Fi & Fantasy
         (selectedLiteraryCategory === "Science Fiction & Fantasy" &&
-          (book.literary_category === "Science Fiction" || book.literary_category === "Fantasy")) ||
+          (bookLiteraryCategory === "Science Fiction" || bookLiteraryCategory === "Fantasy")) ||
         // Combine Poetry & Drama
         (selectedLiteraryCategory === "Poetry & Drama" &&
-          (book.literary_category === "Poetry" || book.literary_category === "Drama & Plays"));
+          (bookLiteraryCategory === "Poetry" || bookLiteraryCategory === "Drama & Plays")) ||
+        // Fallback: if literary_category doesn't exist, match by content_type
+        (!bookLiteraryCategory && selectedLiteraryCategory === "Poetry & Drama" && book.content_type === "poem");
 
       // Author filter
       const matchesAuthor = !selectedAuthor || book.author === selectedAuthor;
@@ -249,7 +253,15 @@ const LibraryEnhanced = () => {
                 return (
                   <button
                     key={author}
-                    onClick={() => setSelectedAuthor(selectedAuthor === author ? null : author)}
+                    onClick={() => {
+                      const newAuthor = selectedAuthor === author ? null : author;
+                      setSelectedAuthor(newAuthor);
+                      // Clear other filters when selecting author
+                      if (newAuthor) {
+                        setSelectedLiteraryCategory("All");
+                        setSearch("");
+                      }
+                    }}
                     className={cn(
                       "p-4 rounded-xl border-2 text-left transition-all hover:shadow-lg",
                       selectedAuthor === author
@@ -273,10 +285,26 @@ const LibraryEnhanced = () => {
 
             {selectedAuthor && (
               <div className="space-y-3">
-                <h2 className="text-xl font-reading font-semibold">
-                  Books by {selectedAuthor}
-                </h2>
-                <BookGrid books={filteredBooks} viewMode={viewMode} />
+                <div className="flex items-center justify-between">
+                  <h2 className="text-xl font-reading font-semibold">
+                    Books by {selectedAuthor}
+                  </h2>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setSelectedAuthor(null)}
+                  >
+                    Clear
+                  </Button>
+                </div>
+                {filteredBooks.length > 0 ? (
+                  <BookGrid books={filteredBooks} viewMode={viewMode} />
+                ) : (
+                  <div className="text-center py-12 text-muted-foreground">
+                    <BookOpen className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                    <p>No books found for {selectedAuthor}.</p>
+                  </div>
+                )}
               </div>
             )}
           </div>

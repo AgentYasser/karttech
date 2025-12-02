@@ -106,14 +106,26 @@ export function BookingModal({ expert, isOpen, onClose, userPoints }: BookingMod
                                         <div className="p-4 border rounded-lg bg-card">
                                             <div className="flex items-center gap-2 font-semibold mb-2">
                                                 <Clock className="w-4 h-4" />
-                                                Deep Dive (30 mins)
+                                                Extended Session
                                             </div>
                                             <p className="text-sm text-muted-foreground mb-3">
                                                 In-depth discussion, essay review, or mentorship.
                                             </p>
+                                            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-3">
+                                                <div className="flex items-start gap-2 text-sm text-blue-800">
+                                                    <CheckCircle2 className="w-4 h-4 mt-0.5 shrink-0" />
+                                                    <div>
+                                                        <p className="font-semibold mb-1">Pricing Information</p>
+                                                        <ul className="text-xs space-y-1">
+                                                            <li>• First 5 minutes are FREE</li>
+                                                            <li>• Additional minutes: $2 per minute</li>
+                                                        </ul>
+                                                    </div>
+                                                </div>
+                                            </div>
                                             <div className="flex items-center justify-between text-sm">
-                                                <span>Rate:</span>
-                                                <span className="font-bold">${(expert.hourlyRate / 200).toFixed(2)}</span>
+                                                <span>Select duration:</span>
+                                                <span className="font-bold text-primary">15-90 minutes</span>
                                             </div>
                                         </div>
 
