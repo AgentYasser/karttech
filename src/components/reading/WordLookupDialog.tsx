@@ -7,7 +7,9 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { lookupWord, useAddVocabulary } from "@/hooks/useVocabulary";
+import { lookupWord } from "@/hooks/useVocabulary";
+import { useAddVocabularySecure } from "@/hooks/useVocabularySecure";
+import { SubscriptionModal } from "@/components/subscription/SubscriptionModal";
 import { useAwardPoints } from "@/hooks/usePoints";
 
 interface WordLookupDialogProps {
@@ -34,7 +36,7 @@ export function WordLookupDialog({ word, bookId, open, onOpenChange }: WordLooku
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
-  const addVocabulary = useAddVocabulary();
+  const { mutate: addVocabulary, showSubscriptionModal, setShowSubscriptionModal, showStorageModal, setShowStorageModal } = useAddVocabularySecure();
   const awardPoints = useAwardPoints();
 
   useEffect(() => {
@@ -64,20 +66,20 @@ export function WordLookupDialog({ word, bookId, open, onOpenChange }: WordLooku
     
     const mainDefinition = definition.meanings[0]?.definitions[0]?.definition || "";
     
-    try {
-      await addVocabulary.mutateAsync({
-        word: definition.word,
-        definition: mainDefinition,
-        bookId,
-      });
-      
-      // Award points for learning a new word
-      awardPoints.mutate({ source: "vocabulary_learned" });
-      
-      onOpenChange(false);
-    } catch (error) {
-      // Error handled by the hook
-    }
+    addVocabulary({
+      word: definition.word,
+      definition: mainDefinition,
+      bookId,
+    }, {
+      onSuccess: (result) => {
+        if (result.success) {
+          // Award points for learning a new word
+          awardPoints.mutate({ source: "vocabulary_learned" });
+          onOpenChange(false);
+        }
+        // If not successful, modal will be shown by the hook
+      }
+    });
   };
 
   const speakWord = () => {
@@ -149,19 +151,27 @@ export function WordLookupDialog({ word, bookId, open, onOpenChange }: WordLooku
 
             <Button
               onClick={handleAddToVocabulary}
-              disabled={addVocabulary.isPending}
               className="w-full gap-2"
             >
-              {addVocabulary.isPending ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <Plus className="w-4 h-4" />
-              )}
+              <Plus className="w-4 h-4" />
               Add to My Vocabulary
             </Button>
           </div>
         )}
       </DialogContent>
+      
+      {/* Subscription Modal */}
+      <SubscriptionModal
+        isOpen={showSubscriptionModal}
+        onClose={() => setShowSubscriptionModal(false)}
+        onSubscribe={(plan) => {
+          console.log("Subscribing to plan:", plan);
+          setShowSubscriptionModal(false);
+        }}
+        feature="vocabulary access"
+      />
+      
+      {/* Storage Purchase Modal - TODO: Create component */}
     </Dialog>
   );
 }

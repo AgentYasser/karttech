@@ -27,19 +27,19 @@ export const SubscriptionModal = ({
   const plans = {
     monthly: {
       name: "Monthly",
-      price: "$8.99",
+      price: "$9.99",
       period: "per month",
       popular: false,
-      priceValue: 8.99
+      priceValue: 9.99
     },
     annual: {
       name: "Annual",
-      price: "$79.99",
+      price: "$99.99",
       period: "per year",
       popular: true,
-      savings: "Save 26%",
-      priceValue: 79.99,
-      monthlyEquivalent: "$6.67/month"
+      savings: "Save 17%",
+      priceValue: 99.99,
+      monthlyEquivalent: "$8.33/month"
     }
   };
 
@@ -118,6 +118,14 @@ export const SubscriptionModal = ({
             <li className="flex items-center gap-2">
               <Check className="w-4 h-4 text-green-600 shrink-0" />
               <span>Access to expert sessions</span>
+            </li>
+            <li className="flex items-center gap-2">
+              <Check className="w-4 h-4 text-green-600 shrink-0" />
+              <span>Vocabulary list access (20 words free, then $2 per 10 words)</span>
+            </li>
+            <li className="flex items-center gap-2">
+              <Check className="w-4 h-4 text-green-600 shrink-0" />
+              <span>Full library access</span>
             </li>
           </ul>
         </div>
