@@ -34,6 +34,7 @@ export function CreateGroupDialog({ children }: CreateGroupDialogProps) {
   const [bookId, setBookId] = useState("");
   const [isPrivate, setIsPrivate] = useState(false);
   const [maxMembers, setMaxMembers] = useState("20");
+  const [readingGoal, setReadingGoal] = useState("");
 
   const createGroup = useCreateGroup();
   const { data: books } = useBooks();
@@ -71,6 +72,7 @@ export function CreateGroupDialog({ children }: CreateGroupDialogProps) {
       setBookId("");
       setIsPrivate(false);
       setMaxMembers("20");
+      setReadingGoal("");
     } catch (error: any) {
       toast({
         title: "Error",
@@ -83,38 +85,52 @@ export function CreateGroupDialog({ children }: CreateGroupDialogProps) {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>{children}</DialogTrigger>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="font-reading">Create Reading Group</DialogTitle>
+          <DialogTitle className="font-reading text-xl">Create Reading Group</DialogTitle>
+          <p className="text-sm text-muted-foreground mt-1">
+            Start a community around shared reading interests
+          </p>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-5">
+          {/* Group Name */}
           <div className="space-y-2">
             <Label htmlFor="name">Group Name *</Label>
             <Input
               id="name"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="e.g., Classic Literature Club"
+              placeholder="e.g., Classic Literature Club, Sci-Fi Enthusiasts"
+              className="text-base"
             />
+            <p className="text-xs text-muted-foreground">
+              Choose a name that reflects your group's focus
+            </p>
           </div>
 
+          {/* Description */}
           <div className="space-y-2">
             <Label htmlFor="description">Description</Label>
             <Textarea
               id="description"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="What's your group about?"
-              rows={3}
+              placeholder="What will your group read together? What discussions do you want to have?"
+              rows={4}
+              className="resize-none"
             />
+            <p className="text-xs text-muted-foreground">
+              Help others understand what your group is about
+            </p>
           </div>
 
+          {/* Currently Reading */}
           <div className="space-y-2">
             <Label htmlFor="book">Currently Reading (Optional)</Label>
             <Select value={bookId} onValueChange={setBookId}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select a book" />
+              <SelectTrigger id="book">
+                <SelectValue placeholder="Select a book to read together" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="">No book selected</SelectItem>
@@ -125,28 +141,50 @@ export function CreateGroupDialog({ children }: CreateGroupDialogProps) {
                 ))}
               </SelectContent>
             </Select>
+            <p className="text-xs text-muted-foreground">
+              Choose a book for your group to read together
+            </p>
           </div>
 
+          {/* Reading Goal */}
           <div className="space-y-2">
-            <Label htmlFor="maxMembers">Max Members</Label>
+            <Label htmlFor="readingGoal">Reading Goal (Optional)</Label>
+            <Input
+              id="readingGoal"
+              value={readingGoal}
+              onChange={(e) => setReadingGoal(e.target.value)}
+              placeholder="e.g., Read 12 books this year, Finish War and Peace by March"
+            />
+            <p className="text-xs text-muted-foreground">
+              Set a goal to keep your group motivated
+            </p>
+          </div>
+
+          {/* Max Members */}
+          <div className="space-y-2">
+            <Label htmlFor="maxMembers">Maximum Members</Label>
             <Select value={maxMembers} onValueChange={setMaxMembers}>
-              <SelectTrigger>
+              <SelectTrigger id="maxMembers">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="10">10 members</SelectItem>
-                <SelectItem value="20">20 members</SelectItem>
-                <SelectItem value="50">50 members</SelectItem>
-                <SelectItem value="100">100 members</SelectItem>
+                <SelectItem value="10">10 members (Intimate)</SelectItem>
+                <SelectItem value="20">20 members (Small)</SelectItem>
+                <SelectItem value="50">50 members (Medium)</SelectItem>
+                <SelectItem value="100">100 members (Large)</SelectItem>
               </SelectContent>
             </Select>
+            <p className="text-xs text-muted-foreground">
+              Limit group size for better discussions
+            </p>
           </div>
 
-          <div className="flex items-center justify-between py-2">
-            <div>
-              <Label htmlFor="private">Private Group</Label>
+          {/* Privacy */}
+          <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
+            <div className="space-y-0.5">
+              <Label htmlFor="private" className="text-base">Private Group</Label>
               <p className="text-xs text-muted-foreground">
-                Only visible to members
+                Only members can see and join this group
               </p>
             </div>
             <Switch
@@ -156,7 +194,21 @@ export function CreateGroupDialog({ children }: CreateGroupDialogProps) {
             />
           </div>
 
-          <div className="flex gap-2 pt-2">
+          {/* Tips */}
+          <div className="p-4 bg-blue-50 dark:bg-blue-950/20 rounded-lg border border-blue-200 dark:border-blue-800">
+            <p className="text-sm font-semibold text-blue-900 dark:text-blue-100 mb-2">
+              💡 Tips for a Great Group
+            </p>
+            <ul className="text-xs text-blue-800 dark:text-blue-200 space-y-1">
+              <li>• Set a clear reading schedule</li>
+              <li>• Encourage active participation</li>
+              <li>• Create discussion questions</li>
+              <li>• Be welcoming to new members</li>
+            </ul>
+          </div>
+
+          {/* Buttons */}
+          <div className="flex gap-3 pt-2">
             <Button
               type="button"
               variant="outline"
@@ -167,7 +219,7 @@ export function CreateGroupDialog({ children }: CreateGroupDialogProps) {
             </Button>
             <Button
               type="submit"
-              disabled={createGroup.isPending}
+              disabled={createGroup.isPending || !name.trim()}
               className="flex-1"
             >
               {createGroup.isPending ? (

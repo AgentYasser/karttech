@@ -21,14 +21,18 @@ import { SubscriptionModal } from "@/components/subscription/SubscriptionModal";
 import { useAwardPoints } from "@/hooks/usePoints";
 import { useHasBookAccess } from "@/hooks/useBookPurchase";
 import { useAuth } from "@/contexts/AuthContext";
+import { removeDisclaimers, formatTextWithSpacing, getReadingContent, calculateReadingPages } from "@/utils/textProcessing";
 
 const ReadingPage = () => {
   const { bookId } = useParams();
   const [selectedWord, setSelectedWord] = useState<string | null>(null);
   const [showDefinition, setShowDefinition] = useState(false);
   const [currentChapterIndex, setCurrentChapterIndex] = useState(0);
+  const [isChapterInitialized, setIsChapterInitialized] = useState(false); // Fix flickering
   const [lastAwardedChapter, setLastAwardedChapter] = useState<number>(-1);
   const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
+  const [showSubscriptionAfterPages, setShowSubscriptionAfterPages] = useState(false);
+  const [totalPagesRead, setTotalPagesRead] = useState(0);
   const { profile } = useAuth();
 
   const { data: book, isLoading: bookLoading } = useBook(bookId);
@@ -52,17 +56,20 @@ const ReadingPage = () => {
     currentChapterIndex >= FREE_PREVIEW_CHAPTERS && 
     currentChapterIndex < FREE_PREVIEW_CHAPTERS + 1;
 
-  // Set initial chapter from session
+  // Set initial chapter from session - FIXED to prevent flickering
   useEffect(() => {
-    if (session && chapters && chapters.length > 0) {
+    if (session && chapters && chapters.length > 0 && !isChapterInitialized) {
       const index = chapters.findIndex(c => c.chapter_number === session.current_chapter);
-      if (index >= 0) setCurrentChapterIndex(index);
+      if (index >= 0) {
+        setCurrentChapterIndex(index);
+        setIsChapterInitialized(true); // Prevent re-initialization
+      }
     }
-  }, [session, chapters]);
+  }, [session, chapters, isChapterInitialized]);
 
   // Save reading progress
   useEffect(() => {
-    if (bookId && chapters && chapters.length > 0) {
+    if (bookId && chapters && chapters.length > 0 && isChapterInitialized) {
       const currentChapter = chapters[currentChapterIndex];
       if (currentChapter) {
         upsertSession.mutate({
@@ -71,7 +78,20 @@ const ReadingPage = () => {
         });
       }
     }
-  }, [currentChapterIndex, bookId]);
+  }, [currentChapterIndex, bookId, isChapterInitialized]);
+
+  // Calculate pages read and show subscription after 2 pages
+  useEffect(() => {
+    if (currentChapter && canReadCurrentChapter && isChapterInitialized) {
+      const cleanedContent = removeDisclaimers(currentChapter.content);
+      const pages = calculateReadingPages(cleanedContent);
+      
+      // If user has read 2+ pages and is not subscribed, show subscription
+      if (totalPagesRead + pages >= 2 && !isSubscribed && !hasFullAccess) {
+        setShowSubscriptionAfterPages(true);
+      }
+    }
+  }, [currentChapter, totalPagesRead, isSubscribed, hasFullAccess, canReadCurrentChapter, isChapterInitialized]);
 
   const handleWordDoubleClick = useCallback((word: string) => {
     const cleanWord = word.replace(/[.,!?;:'"]/g, "").toLowerCase();
@@ -102,6 +122,13 @@ const ReadingPage = () => {
       if (currentChapterIndex > lastAwardedChapter) {
         awardPoints.mutate({ source: "reading_chapter" });
         setLastAwardedChapter(currentChapterIndex);
+        
+        // Update total pages read
+        if (currentChapter) {
+          const cleanedContent = removeDisclaimers(currentChapter.content);
+          const pages = calculateReadingPages(cleanedContent);
+          setTotalPagesRead(prev => prev + pages);
+        }
       }
       setCurrentChapterIndex(nextChapterIndex);
     }
@@ -207,29 +234,52 @@ const ReadingPage = () => {
           <>
             {canReadCurrentChapter ? (
               <div className="reading-content space-y-6">
-                {currentChapter.content.split("\n\n").map((paragraph, pIndex) => (
-                  <p key={pIndex} className="leading-relaxed">
-                    {paragraph.split(/(\s+)/).map((word, wIndex) => {
-                      const cleanWord = word.replace(/[.,!?;:'"]/g, "").toLowerCase();
-                      const isClickable = cleanWord.length > 2 && !word.match(/^\s+$/);
+                {(() => {
+                  // Process content: remove disclaimers and format
+                  let content = currentChapter.content;
+                  content = formatTextWithSpacing(content);
+                  
+                  // If showing preview and not subscribed, limit to 2 pages
+                  if (!isSubscribed && !hasFullAccess && totalPagesRead < 2) {
+                    content = getReadingContent(content, 2);
+                  }
+                  
+                  return content.split("\n\n").map((paragraph, pIndex) => (
+                    <p key={pIndex} className="leading-relaxed text-base mb-4">
+                      {paragraph.split(/(\s+)/).map((word, wIndex) => {
+                        const cleanWord = word.replace(/[.,!?;:'"]/g, "").toLowerCase();
+                        const isClickable = cleanWord.length > 2 && !word.match(/^\s+$/);
 
-                      return (
-                        <span
-                          key={`${pIndex}-${wIndex}`}
-                          onDoubleClick={() => isClickable && handleWordDoubleClick(word)}
-                          className={
-                            isClickable
-                              ? "cursor-pointer hover:bg-primary/50 rounded px-0.5 transition-colors"
-                              : ""
-                          }
-                          title={isClickable ? "Double-click to look up word" : ""}
-                        >
-                          {word}
-                        </span>
-                      );
-                    })}
-                  </p>
-                ))}
+                        return (
+                          <span
+                            key={`${pIndex}-${wIndex}`}
+                            onDoubleClick={() => isClickable && handleWordDoubleClick(word)}
+                            className={
+                              isClickable
+                                ? "cursor-pointer hover:bg-primary/50 rounded px-0.5 transition-colors"
+                                : ""
+                            }
+                            title={isClickable ? "Double-click to look up word" : ""}
+                          >
+                            {word}
+                          </span>
+                        );
+                      })}
+                    </p>
+                  ));
+                })()}
+                
+                {/* Show subscription prompt after 2 pages */}
+                {showSubscriptionAfterPages && !isSubscribed && !hasFullAccess && (
+                  <div className="mt-8 pt-8 border-t border-border">
+                    <SubscriptionModal
+                      isOpen={showSubscriptionAfterPages}
+                      onClose={() => setShowSubscriptionAfterPages(false)}
+                      onSubscribe={handleSubscribe}
+                      feature="continuing to read"
+                    />
+                  </div>
+                )}
                 
                 {/* Show paywall after first chapter if book requires points */}
                 {isPreviewChapter && accessInfo?.requiresPoints && !hasFullAccess && chapters && currentChapterIndex === chapters.length - 1 && (
@@ -244,13 +294,19 @@ const ReadingPage = () => {
             ) : (
               /* Locked chapter - show preview snippet + paywall */
               <div className="reading-content space-y-6">
-                {currentChapter.content.split("\n\n").slice(0, 2).map((paragraph, pIndex) => (
-                  <p key={pIndex} className="leading-relaxed">
-                    {paragraph.split(/(\s+)/).map((word, wIndex) => (
-                      <span key={`${pIndex}-${wIndex}`}>{word}</span>
-                    ))}
-                  </p>
-                ))}
+                {(() => {
+                  let content = currentChapter.content;
+                  content = formatTextWithSpacing(content);
+                  content = getReadingContent(content, 2); // Show first 2 pages
+                  
+                  return content.split("\n\n").slice(0, 2).map((paragraph, pIndex) => (
+                    <p key={pIndex} className="leading-relaxed text-base mb-4">
+                      {paragraph.split(/(\s+)/).map((word, wIndex) => (
+                        <span key={`${pIndex}-${wIndex}`}>{word}</span>
+                      ))}
+                    </p>
+                  ));
+                })()}
                 
                 <BookPaywall
                   bookId={bookId!}

@@ -43,7 +43,9 @@ export function CurrentReadingCard() {
 
   const book = currentReading.books as any;
   const totalChapters = chapters?.length || 1;
-  const progress = Math.round((currentReading.current_chapter / totalChapters) * 100);
+  // Fix: Use stable chapter calculation to prevent flickering
+  const currentChapter = currentReading.current_chapter || 1;
+  const progress = Math.round((currentChapter / totalChapters) * 100);
   const readingTimeMinutes = Math.floor(currentReading.reading_time_seconds / 60);
   const hours = Math.floor(readingTimeMinutes / 60);
   const minutes = readingTimeMinutes % 60;
@@ -70,7 +72,7 @@ export function CurrentReadingCard() {
 
           <div className="mt-3">
             <div className="flex justify-between text-xs text-muted-foreground mb-1.5">
-              <span>Chapter {currentReading.current_chapter} of {totalChapters}</span>
+              <span>Chapter {currentChapter} of {totalChapters}</span>
               <span>{progress}%</span>
             </div>
             <Progress value={progress} className="h-2" />
