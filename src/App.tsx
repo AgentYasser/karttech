@@ -7,8 +7,9 @@ import { CookieConsent } from "@/components/CookieConsent";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { AdminRoute } from "./components/AdminRoute";
-import { Suspense, lazy } from "react";
+import { Suspense, lazy, useEffect } from "react";
 import { Loader2 } from "lucide-react";
+import { autoImportBooksOnFirstRun } from "@/utils/autoImportBooks";
 
 // Lazy load pages
 const Index = lazy(() => import("./pages/Index"));
@@ -37,14 +38,18 @@ const PageLoader = () => (
   </div>
 );
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <AuthProvider>
-        <CookieConsent />
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
+function AppContent() {
+  // Auto-import books on first run
+  useEffect(() => {
+    autoImportBooksOnFirstRun().catch(console.error);
+  }, []);
+
+  return (
+    <>
+      <CookieConsent />
+      <Toaster />
+      <Sonner />
+      <BrowserRouter>
           <Suspense fallback={<PageLoader />}>
             <Routes>
               <Route path="/auth" element={<Auth />} />
@@ -188,6 +193,15 @@ const App = () => (
             </Routes>
           </Suspense>
         </BrowserRouter>
+    </>
+  );
+}
+
+const App = () => (
+  <QueryClientProvider client={queryClient}>
+    <TooltipProvider>
+      <AuthProvider>
+        <AppContent />
       </AuthProvider>
     </TooltipProvider>
   </QueryClientProvider>
