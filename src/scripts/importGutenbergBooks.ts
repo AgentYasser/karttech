@@ -226,7 +226,7 @@ async function importBook(bookData: typeof GUTENBERG_BOOKS[0]) {
         }));
 
         const { error: chaptersError } = await supabase
-            .from('book_chapters')
+            .from('chapters')
             .insert(chapterInserts);
 
         if (chaptersError) {

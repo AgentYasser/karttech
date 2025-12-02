@@ -11,7 +11,8 @@
     "preview": "vite preview",
     "import:books": "tsx src/scripts/runImportBooks.ts",
     "import:book": "tsx src/scripts/runImportBooks.ts",
-    "import:contemporary": "tsx src/scripts/runImportContemporary.ts"
+    "import:contemporary": "tsx src/scripts/runImportContemporary.ts",
+    "import:content": "tsx src/scripts/batchImportContent.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",

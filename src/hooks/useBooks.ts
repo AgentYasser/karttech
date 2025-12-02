@@ -32,14 +32,34 @@ export function useBooks() {
   return useQuery({
     queryKey: ["books"],
     queryFn: async () => {
-      const { data, error } = await supabase
+      // Get all books
+      const { data: books, error } = await supabase
         .from("books")
         .select("*")
         .order("is_featured", { ascending: false })
         .order("title");
       
       if (error) throw error;
-      return data as Book[];
+      if (!books) return [];
+
+      // Filter to only show books with content available
+      // Check which books have chapters
+      const booksWithContent: Book[] = [];
+      
+      for (const book of books) {
+        const { data: chapters } = await supabase
+          .from("chapters")
+          .select("id")
+          .eq("book_id", book.id)
+          .limit(1);
+        
+        // Only include books that have content (chapters)
+        if (chapters && chapters.length > 0) {
+          booksWithContent.push(book);
+        }
+      }
+      
+      return booksWithContent;
     },
   });
 }
@@ -48,14 +68,32 @@ export function useFeaturedBooks() {
   return useQuery({
     queryKey: ["books", "featured"],
     queryFn: async () => {
-      const { data, error } = await supabase
+      // Get featured books
+      const { data: books, error } = await supabase
         .from("books")
         .select("*")
         .eq("is_featured", true)
-        .limit(6);
+        .limit(20); // Get more to filter
       
       if (error) throw error;
-      return data as Book[];
+      if (!books) return [];
+
+      // Filter to only show books with content
+      const booksWithContent: Book[] = [];
+      
+      for (const book of books) {
+        const { data: chapters } = await supabase
+          .from("chapters")
+          .select("id")
+          .eq("book_id", book.id)
+          .limit(1);
+        
+        if (chapters && chapters.length > 0) {
+          booksWithContent.push(book);
+        }
+      }
+      
+      return booksWithContent.slice(0, 6); // Return top 6 with content
     },
   });
 }
