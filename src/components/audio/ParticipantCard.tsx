@@ -20,10 +20,13 @@ export function ParticipantCard({
   roomId,
   onToggleMute,
   onPromote,
+  moderatorCount = 0,
 }: ParticipantCardProps) {
   const isCurrentUser = participant.user_id === currentUserId;
   const canMute = isCurrentUser || isCurrentUserModerator;
-  const canPromote = isCurrentUserModerator && participant.role === "member";
+  // Only allow promoting one additional moderator (limit to 2 moderators total: creator + 1)
+  // Check if we've reached the limit
+  const canPromote = isCurrentUserModerator && participant.role === "member" && moderatorCount < 2;
   const canAwardPoints = !isCurrentUser;
 
   return (

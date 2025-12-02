@@ -43,6 +43,8 @@ export function AudioRoom({ roomId }: AudioRoomProps) {
   const currentParticipant = participants?.find(p => p.user_id === user?.id);
   const isCreator = room?.created_by === user?.id;
   const isModerator = currentParticipant?.role === "moderator" || currentParticipant?.role === "creator";
+  // Count moderators (creator + moderators)
+  const moderatorCount = participants?.filter(p => p.role === "creator" || p.role === "moderator").length || 0;
 
   // WebRTC connection
   const {
@@ -292,6 +294,7 @@ export function AudioRoom({ roomId }: AudioRoomProps) {
                   roomId={roomId}
                   onToggleMute={handleMuteParticipant}
                   onPromote={handlePromote}
+                  moderatorCount={moderatorCount}
                 />
               ))}
             </div>

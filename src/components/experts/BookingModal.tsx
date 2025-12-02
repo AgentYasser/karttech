@@ -9,6 +9,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { Expert } from "./ExpertCard";
+import { SubscriptionModal } from "@/components/subscription/SubscriptionModal";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface BookingModalProps {
     expert: Expert | null;
@@ -24,10 +26,18 @@ export function BookingModal({ expert, isOpen, onClose, userPoints }: BookingMod
     const [date, setDate] = useState<Date | undefined>(new Date());
     const [step, setStep] = useState<'select' | 'confirm' | 'success'>('select');
     const [isProcessing, setIsProcessing] = useState(false);
+    const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
+    const { user, profile } = useAuth();
 
     if (!expert) return null;
 
     const handleBook = async () => {
+        // Check subscription before booking
+        if (!user || !profile?.is_subscribed) {
+            setShowSubscriptionModal(true);
+            return;
+        }
+
         setIsProcessing(true);
         // Simulate API call
         await new Promise(resolve => setTimeout(resolve, 1500));
@@ -183,6 +193,19 @@ export function BookingModal({ expert, isOpen, onClose, userPoints }: BookingMod
                     </>
                 )}
             </DialogContent>
+
+            {/* Subscription Modal */}
+            <SubscriptionModal
+                isOpen={showSubscriptionModal}
+                onClose={() => setShowSubscriptionModal(false)}
+                onSubscribe={(plan) => {
+                    console.log("Subscribing to plan:", plan);
+                    setShowSubscriptionModal(false);
+                    // After subscription, retry booking
+                    handleBook();
+                }}
+                feature="booking expert sessions"
+            />
         </Dialog>
     );
 }

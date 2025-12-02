@@ -32,7 +32,7 @@ export function useBooks() {
   return useQuery({
     queryKey: ["books"],
     queryFn: async () => {
-      // Get all books
+      // Get all books (including those without content)
       const { data: books, error } = await supabase
         .from("books")
         .select("*")
@@ -42,25 +42,28 @@ export function useBooks() {
       if (error) throw error;
       if (!books) return [];
 
-      // Filter to only show books with content available
-      // Check which books have chapters
-      const booksWithContent: Book[] = [];
-      
-      for (const book of books) {
-        const { data: chapters } = await supabase
-          .from("chapters")
-          .select("id")
-          .eq("book_id", book.id)
-          .limit(1);
-        
-        // Only include books that have content (chapters)
-        if (chapters && chapters.length > 0) {
-          booksWithContent.push(book);
-        }
-      }
-      
-      return booksWithContent;
+      // Return all books - we'll check content availability in the UI
+      return books as Book[];
     },
+  });
+}
+
+// Hook to check if a book has content available
+export function useBookHasContent(bookId: string | undefined) {
+  return useQuery({
+    queryKey: ["book-has-content", bookId],
+    queryFn: async () => {
+      if (!bookId) return false;
+      const { data: chapters, error } = await supabase
+        .from("chapters")
+        .select("id")
+        .eq("book_id", bookId)
+        .limit(1);
+      
+      if (error) throw error;
+      return (chapters && chapters.length > 0) || false;
+    },
+    enabled: !!bookId,
   });
 }
 

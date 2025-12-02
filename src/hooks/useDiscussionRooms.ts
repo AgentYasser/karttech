@@ -302,7 +302,7 @@ export function useUpdateMuteStatus() {
   });
 }
 
-// Promote to moderator
+// Promote to moderator (max 2 moderators: creator + 1 additional)
 export function usePromoteToModerator() {
   const queryClient = useQueryClient();
 
@@ -314,6 +314,21 @@ export function usePromoteToModerator() {
       roomId: string;
       participantId: string;
     }) => {
+      // Check current moderator count (creator + moderators)
+      const { data: moderators, error: countError } = await supabase
+        .from("discussion_room_participants")
+        .select("id")
+        .eq("room_id", roomId)
+        .in("role", ["creator", "moderator"])
+        .is("left_at", null);
+
+      if (countError) throw countError;
+
+      // Limit: Max 2 moderators (1 creator + 1 additional moderator)
+      if (moderators && moderators.length >= 2) {
+        throw new Error("Maximum moderator limit reached (2 moderators: creator + 1 additional)");
+      }
+
       const { error } = await supabase
         .from("discussion_room_participants")
         .update({ role: "moderator" })
@@ -324,6 +339,9 @@ export function usePromoteToModerator() {
     onSuccess: (_, { roomId }) => {
       queryClient.invalidateQueries({ queryKey: ["room_participants", roomId] });
       toast.success("User promoted to moderator");
+    },
+    onError: (error: any) => {
+      toast.error(error.message || "Failed to promote user");
     },
   });
 }

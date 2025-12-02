@@ -358,35 +358,43 @@ const ReadingPage = () => {
               </>
             ) : (
               <>
-                <p className="text-muted-foreground">No content available for this book yet.</p>
-                {book.gutenberg_id ? (
-                  <div className="mt-4">
-                    <p className="text-sm text-muted-foreground mb-3">
-                      This book is available on Project Gutenberg. Import will start automatically.
-                    </p>
-                    <Button 
-                      onClick={handleImportContent}
-                      disabled={fetchContent.isPending}
-                      className="gap-2"
-                    >
-                      {fetchContent.isPending ? (
-                        <>
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                          Importing...
-                        </>
-                      ) : (
-                        <>
-                          <Download className="w-4 h-4" />
-                          Import Now
-                        </>
-                      )}
-                    </Button>
+                <div className="flex flex-col items-center gap-4">
+                  <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center">
+                    <BookOpen className="w-8 h-8 text-muted-foreground" />
                   </div>
-                ) : (
-                  <p className="text-sm text-muted-foreground mt-2">
-                    This book doesn't have content available yet.
-                  </p>
-                )}
+                  <div className="text-center">
+                    <p className="text-lg font-semibold text-card-foreground mb-2">Coming Soon</p>
+                    <p className="text-muted-foreground">Content for this book is not available yet.</p>
+                    {book.gutenberg_id ? (
+                      <div className="mt-4">
+                        <p className="text-sm text-muted-foreground mb-3">
+                          This book is available on Project Gutenberg and will be imported automatically.
+                        </p>
+                        <Button 
+                          onClick={handleImportContent}
+                          disabled={fetchContent.isPending}
+                          className="gap-2"
+                        >
+                          {fetchContent.isPending ? (
+                            <>
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                              Importing...
+                            </>
+                          ) : (
+                            <>
+                              <Download className="w-4 h-4" />
+                              Try Import Now
+                            </>
+                          )}
+                        </Button>
+                      </div>
+                    ) : (
+                      <p className="text-sm text-muted-foreground mt-2">
+                        Check back soon for content updates.
+                      </p>
+                    )}
+                  </div>
+                </div>
               </>
             )}
           </div>
