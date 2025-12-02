@@ -223,16 +223,22 @@ export function BookManagement() {
 
                 <div className="flex gap-2">
                     {booksWithoutContent && booksWithoutContent.length > 0 && (
-                        <Button 
-                            onClick={handleImportAll}
-                            disabled={importAllContent.isPending}
-                            variant="default"
-                        >
-                            <Download className="mr-2 h-4 w-4" />
-                            Import Content ({booksWithoutContent.length} books)
-                        </Button>
+                        <>
+                            <Button 
+                                onClick={handleImportAll}
+                                disabled={importAllContent.isPending}
+                                variant="default"
+                                size="sm"
+                            >
+                                <Download className="mr-2 h-4 w-4" />
+                                Import All Content ({booksWithoutContent.length})
+                            </Button>
+                            <div className="text-xs text-muted-foreground self-center">
+                                {booksWithoutContent.length} books need content
+                            </div>
+                        </>
                     )}
-                    <Button onClick={() => setIsAddModalOpen(true)}>
+                    <Button onClick={() => setIsAddModalOpen(true)} size="sm">
                         <Plus className="mr-2 h-4 w-4" /> Add Book
                     </Button>
                 </div>
