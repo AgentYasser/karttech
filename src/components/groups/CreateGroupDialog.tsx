@@ -35,7 +35,7 @@ export function CreateGroupDialog({ children }: CreateGroupDialogProps) {
   const [description, setDescription] = useState("");
   const [bookId, setBookId] = useState("");
   const [isPrivate, setIsPrivate] = useState(false);
-  const [maxMembers, setMaxMembers] = useState("20");
+  const [maxMembers, setMaxMembers] = useState("10"); // Default to 10 for better discussions
   const [readingGoal, setReadingGoal] = useState("");
 
   const createGroup = useCreateGroup();
@@ -73,7 +73,7 @@ export function CreateGroupDialog({ children }: CreateGroupDialogProps) {
       setDescription("");
       setBookId("");
       setIsPrivate(false);
-      setMaxMembers("20");
+      setMaxMembers("10");
       setReadingGoal("");
 
       // Navigate to the new group detail page
@@ -175,14 +175,12 @@ export function CreateGroupDialog({ children }: CreateGroupDialogProps) {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="10">10 members (Intimate)</SelectItem>
-                <SelectItem value="20">20 members (Small)</SelectItem>
-                <SelectItem value="50">50 members (Medium)</SelectItem>
-                <SelectItem value="100">100 members (Large)</SelectItem>
+                <SelectItem value="5">5 members (Intimate)</SelectItem>
+                <SelectItem value="10">10 members (Recommended)</SelectItem>
               </SelectContent>
             </Select>
             <p className="text-xs text-muted-foreground">
-              Limit group size for better discussions
+              Smaller groups foster deeper, more meaningful discussions (max 10)
             </p>
           </div>
 

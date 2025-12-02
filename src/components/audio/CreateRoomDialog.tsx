@@ -19,9 +19,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useCreateDiscussionRoom } from "@/hooks/useDiscussionRooms";
+import { useCreateDiscussionRoom, useJoinRoom } from "@/hooks/useDiscussionRooms";
 import { useBooks } from "@/hooks/useBooks";
 import { useGroups } from "@/hooks/useGroups";
+import { toast } from "sonner";
 
 interface CreateRoomDialogProps {
   children: React.ReactNode;
@@ -37,15 +38,20 @@ export function CreateRoomDialog({ children }: CreateRoomDialogProps) {
   const [duration, setDuration] = useState("30");
 
   const createRoom = useCreateDiscussionRoom();
+  const joinRoom = useJoinRoom();
   const { data: books } = useBooks();
   const { data: groups } = useGroups();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!title.trim()) return;
+    if (!title.trim()) {
+      toast.error("Please enter a discussion title");
+      return;
+    }
 
     try {
+      // Step 1: Create the room
       const room = await createRoom.mutateAsync({
         title: title.trim(),
         description: description.trim() || undefined,
@@ -53,6 +59,10 @@ export function CreateRoomDialog({ children }: CreateRoomDialogProps) {
         groupId: groupId || undefined,
       });
 
+      // Step 2: AUTO-JOIN the creator (no join screen needed)
+      await joinRoom.mutateAsync(room.id);
+
+      // Step 3: Close modal and reset form
       setOpen(false);
       setTitle("");
       setDescription("");
@@ -60,10 +70,13 @@ export function CreateRoomDialog({ children }: CreateRoomDialogProps) {
       setGroupId("");
       setDuration("30");
 
-      // Navigate to the new room
+      // Step 4: Success feedback
+      toast.success("Audio discussion started! You're now live.");
+
+      // Step 5: Navigate to room (creator already inside)
       navigate(`/audio-rooms/${room.id}`);
     } catch (error) {
-      // Error handled by hook
+      toast.error("Failed to start discussion. Please try again.");
     }
   };
 

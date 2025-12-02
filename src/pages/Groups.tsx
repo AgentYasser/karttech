@@ -15,6 +15,7 @@ import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 
 const Groups = () => {
+  const navigate = useNavigate();
   const { data: groups, isLoading } = useGroups();
   const joinGroup = useJoinGroup();
   const leaveGroup = useLeaveGroup();
@@ -40,12 +41,21 @@ const Groups = () => {
 
   const handleJoinGroup = async (groupId: string) => {
     try {
+      // Join the group
       await joinGroup.mutateAsync(groupId);
+      
+      // Award points
       awardPoints.mutate({ source: "group_joined" });
+      
+      // Success feedback
       toast({
-        title: "Joined!",
-        description: "You've successfully joined the reading group.",
+        title: "Welcome to the group! 🎉",
+        description: "You've successfully joined. Check out what everyone's reading!",
       });
+      
+      // Navigate to group detail page (show what they joined)
+      navigate(`/groups/${groupId}`);
+      
     } catch (error: any) {
       toast({
         title: "Error",

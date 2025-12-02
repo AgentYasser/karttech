@@ -55,27 +55,41 @@ export function BookSuggestionModal() {
 
         setIsSubmitting(true);
         try {
-            const { error } = await supabase.from("book_suggestions").insert({
-                user_id: user.id,
-                title: data.title,
-                author: data.author,
-                reason: data.reason,
-                status: "pending",
-            });
+            // Prepare email content
+            const emailBody = `New Book Suggestion from Karttech User
 
-            if (error) throw error;
+Title: ${data.title}
+Author: ${data.author}
+Reason: ${data.reason || 'Not provided'}
+
+Suggested by: ${user.email || 'User ID: ' + user.id}
+Date: ${new Date().toLocaleString()}
+
+---
+Please review and consider adding this book to the library.`;
+
+            const subject = `Book Suggestion: ${data.title} by ${data.author}`;
+            // Admin email - can be updated later
+            const adminEmail = 'admin@karttech.com';
+            
+            // Open mailto link
+            window.open(
+                `mailto:${adminEmail}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(emailBody)}`,
+                '_blank'
+            );
 
             toast({
-                title: "Suggestion submitted",
-                description: "Thanks! We'll review your suggestion shortly.",
+                title: "Suggestion sent!",
+                description: "Thank you! We'll review your suggestion and add it to our library.",
             });
+            
             setOpen(false);
             form.reset();
         } catch (error) {
             console.error("Error submitting suggestion:", error);
             toast({
                 title: "Error",
-                description: "Failed to submit suggestion. Please try again.",
+                description: "Failed to open email client. Please try again.",
                 variant: "destructive",
             });
         } finally {
