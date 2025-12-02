@@ -87,13 +87,47 @@ export function getReadingContent(text: string, maxPages: number = 2): string {
 
 /**
  * Format text with proper chapter spacing
+ * Adds visual separations between chapters and paragraphs for better readability
  */
 export function formatTextWithSpacing(text: string): string {
   // Remove disclaimers first
   let cleaned = removeDisclaimers(text);
   
-  // Format with proper spacing
+  // Detect chapter markers (Chapter X, CHAPTER X, Chapter X:, etc.)
+  const chapterPattern = /^(Chapter\s+\d+|CHAPTER\s+\d+|Chapter\s+\d+[:.]|CHAPTER\s+\d+[:.])/gmi;
+  
+  // Split by chapter markers
+  const parts = cleaned.split(chapterPattern);
+  
+  if (parts.length > 1) {
+    // Reconstruct with chapter markers and extra spacing
+    let formatted = parts[0];
+    for (let i = 1; i < parts.length; i += 2) {
+      const chapterMarker = parts[i];
+      const chapterContent = parts[i + 1] || '';
+      
+      // Add extra spacing before each chapter (except first)
+      if (i > 1) {
+        formatted += '\n\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n';
+      }
+      
+      formatted += chapterMarker;
+      if (chapterContent && !chapterContent.startsWith('\n')) {
+        formatted += '\n\n';
+      }
+      formatted += chapterContent;
+    }
+    cleaned = formatted;
+  }
+  
+  // Format paragraphs with proper spacing
   cleaned = formatChapterContent(cleaned);
+  
+  // Ensure consistent spacing between paragraphs (double newline = one blank line)
+  cleaned = cleaned.replace(/\n{4,}/g, '\n\n\n'); // Max 3 newlines (one blank line between)
+  
+  // Add extra spacing after section breaks (multiple blank lines indicate scene breaks)
+  cleaned = cleaned.replace(/\n\n\n+/g, '\n\n\n'); // Normalize to max one blank line
   
   return cleaned;
 }

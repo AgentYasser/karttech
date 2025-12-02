@@ -244,29 +244,60 @@ const ReadingPage = () => {
                     content = getReadingContent(content, 2);
                   }
                   
-                  return content.split("\n\n").map((paragraph, pIndex) => (
-                    <p key={pIndex} className="leading-relaxed text-base mb-4">
-                      {paragraph.split(/(\s+)/).map((word, wIndex) => {
-                        const cleanWord = word.replace(/[.,!?;:'"]/g, "").toLowerCase();
-                        const isClickable = cleanWord.length > 2 && !word.match(/^\s+$/);
+                  // Split by paragraph breaks and chapter separators
+                  const paragraphs = content.split(/\n\n+/);
+                  
+                  return paragraphs.map((paragraph, pIndex) => {
+                    const trimmed = paragraph.trim();
+                    if (!trimmed) return null;
+                    
+                    // Check if this is a chapter separator line
+                    if (trimmed.startsWith('━') || trimmed.match(/^[-━=]{10,}$/)) {
+                      return (
+                        <div key={pIndex} className="my-8 py-4 border-t border-b border-border/30">
+                          <div className="text-center text-xs text-muted-foreground/50 tracking-widest">
+                            {trimmed}
+                          </div>
+                        </div>
+                      );
+                    }
+                    
+                    // Check if this is a chapter heading
+                    const isChapterHeading = /^(Chapter|CHAPTER)\s+\d+/.test(trimmed);
+                    
+                    if (isChapterHeading) {
+                      return (
+                        <h2 key={pIndex} className="text-2xl font-serif font-semibold mt-12 mb-6 text-card-foreground">
+                          {trimmed}
+                        </h2>
+                      );
+                    }
+                    
+                    // Regular paragraph
+                    return (
+                      <p key={pIndex} className="leading-relaxed text-base mb-6">
+                        {trimmed.split(/(\s+)/).map((word, wIndex) => {
+                          const cleanWord = word.replace(/[.,!?;:'"]/g, "").toLowerCase();
+                          const isClickable = cleanWord.length > 2 && !word.match(/^\s+$/);
 
-                        return (
-                          <span
-                            key={`${pIndex}-${wIndex}`}
-                            onDoubleClick={() => isClickable && handleWordDoubleClick(word)}
-                            className={
-                              isClickable
-                                ? "cursor-pointer hover:bg-primary/50 rounded px-0.5 transition-colors"
-                                : ""
-                            }
-                            title={isClickable ? "Double-click to look up word" : ""}
-                          >
-                            {word}
-                          </span>
-                        );
-                      })}
-                    </p>
-                  ));
+                          return (
+                            <span
+                              key={`${pIndex}-${wIndex}`}
+                              onDoubleClick={() => isClickable && handleWordDoubleClick(word)}
+                              className={
+                                isClickable
+                                  ? "cursor-pointer hover:bg-primary/50 rounded px-0.5 transition-colors"
+                                  : ""
+                              }
+                              title={isClickable ? "Double-click to look up word" : ""}
+                            >
+                              {word}
+                            </span>
+                          );
+                        })}
+                      </p>
+                    );
+                  }).filter(Boolean);
                 })()}
                 
                 {/* Show subscription prompt after 2 pages */}

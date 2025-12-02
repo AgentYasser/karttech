@@ -84,17 +84,20 @@ export function CreateDiscussionDialog({ children }: CreateDiscussionDialogProps
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>{children}</DialogTrigger>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="font-reading">Start a Discussion</DialogTitle>
+          <DialogTitle className="font-reading text-xl">Start a Discussion</DialogTitle>
+          <p className="text-sm text-muted-foreground mt-1">
+            Share your thoughts, ask questions, or spark a conversation about literature
+          </p>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-5">
           <div className="space-y-2">
             <Label htmlFor="book">Book *</Label>
             <Select value={bookId} onValueChange={setBookId}>
               <SelectTrigger>
-                <SelectValue placeholder="Select a book" />
+                <SelectValue placeholder="Select the book you're discussing" />
               </SelectTrigger>
               <SelectContent>
                 {books?.map((book) => (
@@ -104,6 +107,9 @@ export function CreateDiscussionDialog({ children }: CreateDiscussionDialogProps
                 ))}
               </SelectContent>
             </Select>
+            <p className="text-xs text-muted-foreground">
+              Choose the book your discussion relates to
+            </p>
           </div>
 
           <div className="space-y-2">
@@ -118,16 +124,23 @@ export function CreateDiscussionDialog({ children }: CreateDiscussionDialogProps
                 <SelectItem value="communal">Communal (Open to everyone)</SelectItem>
               </SelectContent>
             </Select>
+            <p className="text-xs text-muted-foreground">
+              Solo: Personal reflection • Group: Reading group discussion • Communal: Open to all
+            </p>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="title">Title *</Label>
+            <Label htmlFor="title">Discussion Title *</Label>
             <Input
               id="title"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="What would you like to discuss?"
+              placeholder="e.g., Character Development in Chapter 5, Themes of Love and Loss, What did you think of the ending?"
+              className="text-base"
             />
+            <p className="text-xs text-muted-foreground">
+              Write a clear, engaging title that captures your discussion topic
+            </p>
           </div>
 
           <div className="space-y-2">
@@ -136,9 +149,27 @@ export function CreateDiscussionDialog({ children }: CreateDiscussionDialogProps
               id="content"
               value={content}
               onChange={(e) => setContent(e.target.value)}
-              placeholder="Share your thoughts, questions, or insights..."
-              rows={4}
+              placeholder="Share your insights, questions, or observations. What stood out to you? What made you think? What would you like to explore with others?"
+              rows={6}
+              className="resize-none"
             />
+            <p className="text-xs text-muted-foreground">
+              Be specific and thoughtful to encourage meaningful responses
+            </p>
+          </div>
+
+          {/* Tips */}
+          <div className="p-4 bg-blue-50 dark:bg-blue-950/20 rounded-lg border border-blue-200 dark:border-blue-800">
+            <p className="text-sm font-semibold text-blue-900 dark:text-blue-100 mb-2">
+              💬 Tips for Great Discussions
+            </p>
+            <ul className="text-xs text-blue-800 dark:text-blue-200 space-y-1">
+              <li>• Ask open-ended questions to encourage dialogue</li>
+              <li>• Reference specific chapters, quotes, or scenes</li>
+              <li>• Share your perspective but invite others' views</li>
+              <li>• Be respectful and open to different interpretations</li>
+              <li>• Engage with responses to keep the conversation going</li>
+            </ul>
           </div>
 
           <div className="flex gap-2 pt-2">
