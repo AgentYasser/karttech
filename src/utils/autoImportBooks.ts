@@ -1,9 +1,11 @@
 /**
  * Auto-import books on first run
- * This runs once to populate the library with content
+ * FULLY AUTOMATIC - Creates book metadata AND imports content
+ * No manual setup required!
  */
 import { supabase } from "@/integrations/supabase/client";
-import { importAllMissingContent, getBooksWithoutContent } from "./bookContentManager";
+import { importAllMissingContent, importBookContent } from "./bookContentManager";
+import { GUTENBERG_BOOKS } from "@/data/gutenbergCatalog";
 
 const IMPORT_FLAG_KEY = "karttech_books_imported";
 
@@ -24,9 +26,10 @@ function markBooksAsImported() {
 }
 
 /**
- * Auto-import all book content on first run
- * NON-BLOCKING - Runs in background without halting user experience
- * Users can browse while import happens
+ * FULLY AUTOMATIC SETUP
+ * 1. Creates all book metadata (if missing)
+ * 2. Imports all book content from Project Gutenberg
+ * 3. Runs in background without blocking user
  */
 export async function autoImportBooksOnFirstRun(): Promise<void> {
   // Skip if already imported
@@ -38,43 +41,131 @@ export async function autoImportBooksOnFirstRun(): Promise<void> {
   // DON'T AWAIT - Let this run in background
   setTimeout(async () => {
     try {
-      console.log("📚 Starting background book import...");
+      console.log("🚀 KARTTECH AUTO-SETUP: Starting full library initialization...");
       
-      // Get books without content
-      const booksWithoutContent = await getBooksWithoutContent();
+      // STEP 1: Ensure all books exist in database
+      console.log("📖 Step 1/2: Creating book entries...");
+      const { data: existingBooks, error: fetchError } = await supabase
+        .from("books")
+        .select("gutenberg_id, id");
+
+      if (fetchError) {
+        console.error("❌ Failed to fetch existing books:", fetchError);
+        return;
+      }
+
+      const existingGutenbergIds = new Set(existingBooks?.map(b => b.gutenberg_id) || []);
+      const booksToCreate = GUTENBERG_BOOKS.filter(book => !existingGutenbergIds.has(book.gutenberg_id));
+
+      if (booksToCreate.length > 0) {
+        console.log(`  Creating ${booksToCreate.length} book entries...`);
+        const inserts = booksToCreate.map(bookData => ({
+          title: bookData.title,
+          author: bookData.author,
+          description: bookData.description,
+          category: bookData.category,
+          content_type: bookData.contentType,
+          gutenberg_id: bookData.gutenberg_id,
+          word_count: bookData.estimatedWordCount,
+          estimated_reading_time: Math.ceil(bookData.estimatedWordCount / 250),
+          is_featured: false,
+          requires_points: false,
+          points_cost: 0,
+          is_trending: false,
+          active_readers_count: 0,
+          total_completions: 0,
+          content_available: false,
+        }));
+
+        const { error: insertError } = await supabase.from("books").insert(inserts);
+        if (insertError) {
+          console.error("❌ Failed to create books:", insertError);
+          return;
+        }
+        console.log(`  ✅ Created ${booksToCreate.length} book entries!`);
+      } else {
+        console.log("  ✅ All book entries already exist!");
+      }
+
+      // STEP 2: Import content for all books
+      console.log("📥 Step 2/2: Importing book content from Project Gutenberg...");
       
-      if (booksWithoutContent.length === 0) {
-        console.log("✅ All books already have content");
+      // Get all books without content
+      const { data: allBooks, error: booksError } = await supabase
+        .from("books")
+        .select("id, title, gutenberg_id, content_available")
+        .eq("content_available", false)
+        .not("gutenberg_id", "is", null);
+
+      if (booksError) {
+        console.error("❌ Failed to fetch books:", booksError);
+        return;
+      }
+
+      if (!allBooks || allBooks.length === 0) {
+        console.log("  ✅ All books already have content!");
         markBooksAsImported();
         return;
       }
 
-      console.log(`📥 Importing ${booksWithoutContent.length} books in background...`);
-      
-      // Import all missing content (runs in background)
-      const result = await importAllMissingContent((current, total, bookTitle) => {
-        console.log(`  [${current}/${total}] Importing: ${bookTitle}`);
-        // Dispatch custom event for UI to listen to
-        window.dispatchEvent(new CustomEvent('book-import-progress', {
-          detail: { current, total, bookTitle }
-        }));
-      });
+      console.log(`  Importing content for ${allBooks.length} books...`);
+      let imported = 0;
+      let failed = 0;
 
-      console.log(`✅ Background import complete! Imported: ${result.imported}, Failed: ${result.failed}`);
+      // Import content for each book
+      for (let i = 0; i < allBooks.length; i++) {
+        const book = allBooks[i];
+        const progress = `[${i + 1}/${allBooks.length}]`;
+        
+        console.log(`  ${progress} Importing: ${book.title}...`);
+        
+        // Dispatch progress event for UI
+        window.dispatchEvent(new CustomEvent('book-import-progress', {
+          detail: { current: i + 1, total: allBooks.length, bookTitle: book.title }
+        }));
+
+        if (book.gutenberg_id) {
+          try {
+            const result = await importBookContent(book.id, book.gutenberg_id);
+            if (result.success) {
+              imported++;
+              console.log(`  ${progress} ✅ ${book.title} (${result.chaptersCreated} chapters)`);
+            } else {
+              failed++;
+              console.log(`  ${progress} ❌ ${book.title} - ${result.error}`);
+            }
+          } catch (error: any) {
+            failed++;
+            console.log(`  ${progress} ❌ ${book.title} - ${error.message}`);
+          }
+        } else {
+          failed++;
+          console.log(`  ${progress} ⚠️  ${book.title} - No Gutenberg ID`);
+        }
+
+        // Small delay to avoid rate limits
+        if (i < allBooks.length - 1) {
+          await new Promise(resolve => setTimeout(resolve, 500));
+        }
+      }
+
+      console.log(`\n🎉 LIBRARY SETUP COMPLETE!`);
+      console.log(`   ✅ Imported: ${imported} books`);
+      console.log(`   ❌ Failed: ${failed} books`);
       
       // Mark as imported
       markBooksAsImported();
       
       // Notify UI
       window.dispatchEvent(new CustomEvent('book-import-complete', {
-        detail: { imported: result.imported, failed: result.failed }
+        detail: { imported, failed, total: allBooks.length }
       }));
       
     } catch (error) {
-      console.error("Error during auto-import:", error);
+      console.error("❌ Error during auto-setup:", error);
       // Don't mark as imported if failed - will retry next time
     }
-  }, 1000); // Start after 1 second delay (let app initialize first)
+  }, 2000); // Start after 2 seconds (let app initialize first)
 }
 
 /**
