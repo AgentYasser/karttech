@@ -638,9 +638,196 @@ serve(async (req) => {
       }
     }
 
+    if (action === 'enrich_with_audiobooks') {
+      // NEW: Add LibriVox audiobooks to existing books
+      console.log('Starting LibriVox audiobook enrichment...');
+      
+      try {
+        const { data: books, error: booksError } = await supabase
+          .from('books')
+          .select('id, title, author, librivox_id')
+          .is('librivox_id', null)
+          .limit(50);
+        
+        if (booksError) {
+          throw new Error(`Failed to fetch books: ${booksError.message}`);
+        }
+        
+        if (!books || books.length === 0) {
+          return new Response(JSON.stringify({ 
+            success: true,
+            message: 'All books already checked for audiobooks',
+            enriched: 0
+          }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+        
+        let enriched = 0;
+        let notFound = 0;
+        
+        for (const book of books) {
+          try {
+            // Search LibriVox for this book
+            const searchUrl = `https://librivox.org/api/feed/audiobooks?title=${encodeURIComponent(book.title)}&author=${encodeURIComponent(book.author)}&format=json&extended=1`;
+            const response = await fetch(searchUrl);
+            
+            if (!response.ok) {
+              console.log(`⚠️  LibriVox API error for ${book.title}`);
+              continue;
+            }
+            
+            const data = await response.json();
+            const audiobooks = data.books || [];
+            
+            if (audiobooks.length > 0) {
+              const audiobook = audiobooks[0];
+              
+              // Update book with audiobook info
+              const { error: updateError } = await supabase
+                .from('books')
+                .update({
+                  librivox_id: parseInt(audiobook.id),
+                  librivox_url: audiobook.url_librivox,
+                  audio_duration_minutes: parseInt(audiobook.totaltimesecs) / 60,
+                  has_audiobook: true,
+                  content_sources: supabase.sql`array_append(content_sources, 'librivox')`
+                })
+                .eq('id', book.id);
+              
+              if (!updateError) {
+                enriched++;
+                console.log(`✅ Added audiobook for: ${book.title}`);
+              }
+            } else {
+              notFound++;
+            }
+            
+            // Delay to respect rate limits
+            await new Promise(resolve => setTimeout(resolve, 500));
+            
+          } catch (error: any) {
+            console.error(`Error enriching ${book.title}:`, error.message);
+          }
+        }
+        
+        return new Response(JSON.stringify({ 
+          success: true,
+          enriched,
+          notFound,
+          total: books.length
+        }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+        
+      } catch (error: any) {
+        console.error('Error in audiobook enrichment:', error);
+        return new Response(JSON.stringify({ 
+          error: 'Audiobook enrichment failed',
+          details: error.message 
+        }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+    }
+    
+    if (action === 'enrich_with_standard_ebooks') {
+      // NEW: Add Standard Ebooks enhanced formatting
+      console.log('Starting Standard Ebooks enrichment...');
+      
+      try {
+        const { data: books } = await supabase
+          .from('books')
+          .select('id, title, author')
+          .is('standard_ebooks_url', null)
+          .limit(50);
+        
+        if (!books || books.length === 0) {
+          return new Response(JSON.stringify({ 
+            success: true,
+            message: 'All books already enriched with Standard Ebooks',
+            enriched: 0
+          }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+        
+        let enriched = 0;
+        
+        // Standard Ebooks has consistent URL structure
+        // Format: https://standardebooks.org/ebooks/author-name/book-title
+        const knownAuthors = [
+          'Jane Austen', 'Charles Dickens', 'Mark Twain', 'Oscar Wilde',
+          'Mary Shelley', 'Bram Stoker', 'H. G. Wells', 'Jules Verne',
+          'Edgar Allan Poe', 'Charlotte Brontë', 'Emily Brontë',
+          'Fyodor Dostoevsky', 'Leo Tolstoy', 'Herman Melville',
+          'Nathaniel Hawthorne', 'Jack London', 'Robert Louis Stevenson',
+          'William Shakespeare', 'Homer', 'Dante Alighieri',
+          'Lewis Carroll', 'Daniel Defoe', 'Jonathan Swift',
+          'Alexandre Dumas', 'Victor Hugo', 'Arthur Conan Doyle'
+        ];
+        
+        for (const book of books) {
+          if (knownAuthors.includes(book.author)) {
+            // Generate Standard Ebooks URL
+            const authorSlug = book.author.toLowerCase()
+              .replace(/\s+/g, '-')
+              .replace(/[àáâä]/g, 'a')
+              .replace(/[èéêë]/g, 'e')
+              .replace(/['']/g, '')
+              .replace(/[^a-z-]/g, '');
+            
+            const titleSlug = book.title.toLowerCase()
+              .replace(/\s+/g, '-')
+              .replace(/['']/g, '')
+              .replace(/[^a-z0-9-]/g, '')
+              .replace(/--+/g, '-');
+            
+            const seUrl = `https://standardebooks.org/ebooks/${authorSlug}/${titleSlug}`;
+            const epubUrl = `${seUrl}/downloads/${titleSlug}.epub`;
+            
+            const { error: updateError } = await supabase
+              .from('books')
+              .update({
+                standard_ebooks_url: seUrl,
+                epub_url: epubUrl,
+                has_enhanced_formatting: true,
+                content_sources: supabase.sql`CASE WHEN 'standard_ebooks' = ANY(content_sources) THEN content_sources ELSE array_append(content_sources, 'standard_ebooks') END`
+              })
+              .eq('id', book.id);
+            
+            if (!updateError) {
+              enriched++;
+              console.log(`✅ Added Standard Ebooks for: ${book.title}`);
+            }
+          }
+        }
+        
+        return new Response(JSON.stringify({ 
+          success: true,
+          enriched,
+          total: books.length,
+          message: `Added Standard Ebooks links to ${enriched} books`
+        }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+        
+      } catch (error: any) {
+        console.error('Error in Standard Ebooks enrichment:', error);
+        return new Response(JSON.stringify({ 
+          error: 'Standard Ebooks enrichment failed',
+          details: error.message 
+        }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+    }
+
     return new Response(JSON.stringify({ 
       error: 'Invalid action',
-      validActions: ['import_by_author', 'import_by_category', 'get_timeless_authors', 'fetch_book_content', 'import_all_content']
+      validActions: ['import_by_author', 'import_by_category', 'get_timeless_authors', 'fetch_book_content', 'import_all_content', 'enrich_with_audiobooks', 'enrich_with_standard_ebooks']
     }), {
       status: 400,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
