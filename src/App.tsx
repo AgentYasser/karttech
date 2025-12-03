@@ -164,7 +164,7 @@ function AppContent() {
                 path="/audio-rooms/:roomId"
                 element={
                   <ProtectedRoute>
-                    <AudioRoom />
+                    <AudioRooms />
                   </ProtectedRoute>
                 }
               />
