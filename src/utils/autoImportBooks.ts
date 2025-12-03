@@ -1,179 +1,156 @@
 /**
  * Auto-import books on first run
- * FULLY AUTOMATIC - Creates book metadata AND imports content
- * No manual setup required!
+ * FIXED: Now uses Supabase Edge Function (server-side, no CORS issues)
  */
 import { supabase } from "@/integrations/supabase/client";
-import { importAllMissingContent, importBookContent } from "./bookContentManager";
-import { GUTENBERG_BOOKS } from "@/data/gutenbergCatalog";
-
-const IMPORT_FLAG_KEY = "karttech_books_imported";
 
 /**
- * Check if books have already been imported
+ * Check import status from server (not localStorage)
  */
-export function hasImportedBooks(): boolean {
-  if (typeof window === 'undefined') return false;
-  return localStorage.getItem(IMPORT_FLAG_KEY) === "true";
+export async function checkImportStatus(): Promise<'pending' | 'in_progress' | 'complete'> {
+  try {
+    const { data, error } = await supabase
+      .from('system_config')
+      .select('config_value')
+      .eq('config_key', 'book_import_status')
+      .maybeSingle();
+    
+    if (error) {
+      console.error('Error checking import status:', error);
+      return 'pending';
+    }
+    
+    return (data?.config_value as 'pending' | 'in_progress' | 'complete') || 'pending';
+  } catch (error) {
+    console.error('Error checking import status:', error);
+    return 'pending';
+  }
 }
 
 /**
- * Mark books as imported
+ * Trigger server-side bulk import via Edge Function
+ * NON-BLOCKING - Returns immediately, import happens in background
  */
-function markBooksAsImported() {
-  if (typeof window === 'undefined') return;
-  localStorage.setItem(IMPORT_FLAG_KEY, "true");
+export async function triggerBulkImport(): Promise<{ success: boolean; message: string }> {
+  try {
+    console.log('🚀 Triggering server-side bulk import...');
+    
+    const { data, error } = await supabase.functions.invoke('import-books', {
+      body: { action: 'import_all_content' }
+    });
+    
+    if (error) {
+      console.error('❌ Error invoking import function:', error);
+      return { 
+        success: false, 
+        message: `Failed to start import: ${error.message}` 
+      };
+    }
+    
+    if (data.success) {
+      console.log(`✅ Import completed: ${data.imported} books imported, ${data.failed} failed`);
+      return { 
+        success: true, 
+        message: `Successfully imported ${data.imported} books` 
+      };
+    } else {
+      console.log(`⚠️ Import result: ${data.message || 'Unknown status'}`);
+      return { 
+        success: true, 
+        message: data.message || 'Import process completed' 
+      };
+    }
+  } catch (error: any) {
+    console.error('❌ Error triggering bulk import:', error);
+    return { 
+      success: false, 
+      message: `Error: ${error.message}` 
+    };
+  }
 }
 
 /**
- * FULLY AUTOMATIC SETUP
- * 1. Creates all book metadata (if missing)
- * 2. Imports all book content from Project Gutenberg
- * 3. Runs in background without blocking user
+ * FULLY AUTOMATIC SETUP (FIXED VERSION)
+ * Checks server-side status and triggers Edge Function if needed
+ * Non-blocking - import happens on server, not in browser
  */
 export async function autoImportBooksOnFirstRun(): Promise<void> {
-  // Skip if already imported
-  if (hasImportedBooks()) {
-    console.log("📚 Books already imported, skipping auto-import");
-    return;
-  }
-
-  // DON'T AWAIT - Let this run in background
-  setTimeout(async () => {
-    try {
-      console.log("🚀 KARTTECH AUTO-SETUP: Starting full library initialization...");
-      
-      // STEP 1: Ensure all books exist in database
-      console.log("📖 Step 1/2: Creating book entries...");
-      const { data: existingBooks, error: fetchError } = await supabase
-        .from("books")
-        .select("gutenberg_id, id");
-
-      if (fetchError) {
-        console.error("❌ Failed to fetch existing books:", fetchError);
-        return;
-      }
-
-      const existingGutenbergIds = new Set(existingBooks?.map(b => b.gutenberg_id) || []);
-      const booksToCreate = GUTENBERG_BOOKS.filter(book => !existingGutenbergIds.has(book.gutenberg_id));
-
-      if (booksToCreate.length > 0) {
-        console.log(`  Creating ${booksToCreate.length} book entries...`);
-        const inserts = booksToCreate.map(bookData => ({
-          title: bookData.title,
-          author: bookData.author,
-          description: bookData.description,
-          category: bookData.category,
-          content_type: bookData.contentType,
-          gutenberg_id: bookData.gutenberg_id,
-          word_count: bookData.estimatedWordCount,
-          estimated_reading_time: Math.ceil(bookData.estimatedWordCount / 250),
-          is_featured: false,
-          requires_points: false,
-          points_cost: 0,
-          is_trending: false,
-          active_readers_count: 0,
-          total_completions: 0,
-          content_available: false,
-        }));
-
-        const { error: insertError } = await supabase.from("books").insert(inserts);
-        if (insertError) {
-          console.error("❌ Failed to create books:", insertError);
-          return;
-        }
-        console.log(`  ✅ Created ${booksToCreate.length} book entries!`);
-      } else {
-        console.log("  ✅ All book entries already exist!");
-      }
-
-      // STEP 2: Import content for all books
-      console.log("📥 Step 2/2: Importing book content from Project Gutenberg...");
-      
-      // Get all books without content
-      const { data: allBooks, error: booksError } = await supabase
-        .from("books")
-        .select("id, title, gutenberg_id, content_available")
-        .eq("content_available", false)
-        .not("gutenberg_id", "is", null);
-
-      if (booksError) {
-        console.error("❌ Failed to fetch books:", booksError);
-        return;
-      }
-
-      if (!allBooks || allBooks.length === 0) {
-        console.log("  ✅ All books already have content!");
-        markBooksAsImported();
-        return;
-      }
-
-      console.log(`  Importing content for ${allBooks.length} books...`);
-      let imported = 0;
-      let failed = 0;
-
-      // Import content for each book
-      for (let i = 0; i < allBooks.length; i++) {
-        const book = allBooks[i];
-        const progress = `[${i + 1}/${allBooks.length}]`;
-        
-        console.log(`  ${progress} Importing: ${book.title}...`);
-        
-        // Dispatch progress event for UI
-        window.dispatchEvent(new CustomEvent('book-import-progress', {
-          detail: { current: i + 1, total: allBooks.length, bookTitle: book.title }
-        }));
-
-        if (book.gutenberg_id) {
-          try {
-            const result = await importBookContent(book.id, book.gutenberg_id);
-            if (result.success) {
-              imported++;
-              console.log(`  ${progress} ✅ ${book.title} (${result.chaptersCreated} chapters)`);
-            } else {
-              failed++;
-              console.log(`  ${progress} ❌ ${book.title} - ${result.error}`);
-            }
-          } catch (error: any) {
-            failed++;
-            console.log(`  ${progress} ❌ ${book.title} - ${error.message}`);
-          }
-        } else {
-          failed++;
-          console.log(`  ${progress} ⚠️  ${book.title} - No Gutenberg ID`);
-        }
-
-        // Small delay to avoid rate limits
-        if (i < allBooks.length - 1) {
-          await new Promise(resolve => setTimeout(resolve, 500));
-        }
-      }
-
-      console.log(`\n🎉 LIBRARY SETUP COMPLETE!`);
-      console.log(`   ✅ Imported: ${imported} books`);
-      console.log(`   ❌ Failed: ${failed} books`);
-      
-      // Mark as imported
-      markBooksAsImported();
-      
-      // Notify UI
-      window.dispatchEvent(new CustomEvent('book-import-complete', {
-        detail: { imported, failed, total: allBooks.length }
-      }));
-      
-    } catch (error) {
-      console.error("❌ Error during auto-setup:", error);
-      // Don't mark as imported if failed - will retry next time
+  try {
+    console.log('📚 Checking book import status...');
+    
+    // Check server-side status (not localStorage)
+    const status = await checkImportStatus();
+    
+    if (status === 'complete') {
+      console.log('✅ Books already imported');
+      return;
     }
-  }, 2000); // Start after 2 seconds (let app initialize first)
+    
+    if (status === 'in_progress') {
+      console.log('⏳ Import already in progress');
+      return;
+    }
+    
+    // Status is 'pending' - trigger import
+    console.log('🚀 Starting server-side book import...');
+    
+    // Trigger Edge Function (non-blocking)
+    const result = await triggerBulkImport();
+    
+    if (result.success) {
+      console.log(`✅ ${result.message}`);
+      
+      // Dispatch completion event for UI
+      window.dispatchEvent(new CustomEvent('book-import-complete', {
+        detail: { message: result.message }
+      }));
+    } else {
+      console.error(`❌ ${result.message}`);
+    }
+    
+  } catch (error) {
+    console.error('❌ Error during auto-setup:', error);
+  }
+}
+
+/**
+ * Get import progress (for UI display)
+ */
+export async function getImportProgress(): Promise<{ current: number; total: number; errors: any[] } | null> {
+  try {
+    const { data, error } = await supabase
+      .from('system_config')
+      .select('config_value')
+      .eq('config_key', 'book_import_progress')
+      .maybeSingle();
+    
+    if (error || !data) {
+      return null;
+    }
+    
+    return JSON.parse(data.config_value);
+  } catch (error) {
+    console.error('Error getting import progress:', error);
+    return null;
+  }
 }
 
 /**
  * Force re-import (for admin use)
  */
-export function resetImportFlag() {
-  if (typeof window === 'undefined') return;
-  localStorage.removeItem(IMPORT_FLAG_KEY);
-  console.log("🔄 Import flag reset - books will be imported on next page load");
+export async function resetImportFlag() {
+  try {
+    const { error } = await supabase
+      .from('system_config')
+      .update({ config_value: 'pending' })
+      .eq('config_key', 'book_import_status');
+    
+    if (error) {
+      console.error('Error resetting import flag:', error);
+    } else {
+      console.log('🔄 Import flag reset - books will be imported on next trigger');
+    }
+  } catch (error) {
+    console.error('Error resetting import flag:', error);
+  }
 }
-

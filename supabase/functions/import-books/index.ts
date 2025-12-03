@@ -325,57 +325,313 @@ serve(async (req) => {
     }
     
     if (action === 'fetch_book_content') {
-      // Fetch full text from Gutenberg
+      // Fetch full text from Gutenberg and import chapters
       const textUrl = `https://www.gutenberg.org/files/${gutenberg_id}/${gutenberg_id}-0.txt`;
-      console.log(`Fetching book content: ${textUrl}`);
+      console.log(`Fetching book content for Gutenberg ID ${gutenberg_id}`);
       
       try {
+        let content = '';
+        
+        // Try primary URL first
         const response = await fetch(textUrl);
-        if (!response.ok) {
+        if (response.ok) {
+          content = await response.text();
+        } else {
           // Try alternate URL format
           const altUrl = `https://www.gutenberg.org/cache/epub/${gutenberg_id}/pg${gutenberg_id}.txt`;
+          console.log(`Primary URL failed, trying alternate: ${altUrl}`);
           const altResponse = await fetch(altUrl);
           if (!altResponse.ok) {
-            throw new Error('Could not fetch book content');
+            throw new Error(`Could not fetch book content from either URL (status: ${altResponse.status})`);
           }
-          const content = await altResponse.text();
-          return new Response(JSON.stringify({ content }), {
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          content = await altResponse.text();
+        }
+        
+        // Clean Gutenberg header/footer
+        const startMarkers = ['*** START OF THE PROJECT GUTENBERG', '*** START OF THIS PROJECT GUTENBERG'];
+        const endMarkers = ['*** END OF THE PROJECT GUTENBERG', '*** END OF THIS PROJECT GUTENBERG', 'End of the Project Gutenberg'];
+        
+        let cleanedContent = content;
+        for (const marker of startMarkers) {
+          const startIndex = cleanedContent.indexOf(marker);
+          if (startIndex !== -1) {
+            const lineEnd = cleanedContent.indexOf('\n', startIndex);
+            if (lineEnd !== -1) {
+              cleanedContent = cleanedContent.substring(lineEnd + 1);
+              break;
+            }
+          }
+        }
+        
+        for (const marker of endMarkers) {
+          const endIndex = cleanedContent.indexOf(marker);
+          if (endIndex !== -1) {
+            cleanedContent = cleanedContent.substring(0, endIndex);
+            break;
+          }
+        }
+        
+        // Split into chapters with improved detection
+        const chapterPatterns = [
+          /^CHAPTER\s+([IVXLCDM]+|\d+)[:\.\s]/gim,
+          /^Chapter\s+(\d+|[IVXLCDM]+)[:\.\s]/gim,
+          /^ACT\s+([IVXLCDM]+|\d+)/gim,
+          /^SCENE\s+([IVXLCDM]+|\d+)/gim,
+          /^PART\s+(\d+|[IVXLCDM]+)/gim,
+          /^Book\s+(\d+|[IVXLCDM]+)/gim,
+        ];
+        
+        let chapterMatches: Array<{ index: number; title: string }> = [];
+        
+        for (const pattern of chapterPatterns) {
+          const matches = [...cleanedContent.matchAll(pattern)];
+          if (matches.length > 0) {
+            chapterMatches = matches.map(match => ({
+              index: match.index!,
+              title: match[0].trim()
+            }));
+            break;
+          }
+        }
+        
+        let chapters: Array<{ chapter_number: number; title: string; content: string }> = [];
+        
+        if (chapterMatches.length === 0) {
+          // No chapters found - split into reasonable chunks
+          const lines = cleanedContent.split('\n');
+          const chunkSize = Math.max(100, Math.floor(lines.length / 10));
+          
+          for (let i = 0; i < lines.length; i += chunkSize) {
+            const chunk = lines.slice(i, i + chunkSize).join('\n').trim();
+            if (chunk) {
+              chapters.push({
+                chapter_number: chapters.length + 1,
+                title: `Part ${chapters.length + 1}`,
+                content: chunk
+              });
+            }
+          }
+        } else {
+          // Split at chapter markers
+          for (let i = 0; i < chapterMatches.length; i++) {
+            const start = chapterMatches[i].index;
+            const end = i < chapterMatches.length - 1
+              ? chapterMatches[i + 1].index
+              : cleanedContent.length;
+            
+            const chapterContent = cleanedContent.substring(start, end).trim();
+            
+            if (chapterContent && chapterContent.length > 100) {
+              chapters.push({
+                chapter_number: i + 1,
+                title: chapterMatches[i].title,
+                content: chapterContent
+              });
+            }
+          }
+        }
+        
+        // If still no chapters, create one big chapter
+        if (chapters.length === 0 && cleanedContent.trim().length > 0) {
+          chapters.push({
+            chapter_number: 1,
+            title: 'Full Text',
+            content: cleanedContent.trim()
           });
         }
         
-        const content = await response.text();
-        
-        // Split into chapters (basic heuristic)
-        const chapters = content.split(/(?:CHAPTER|Chapter)\s+(?:\d+|[IVXLC]+)/g)
-          .filter(c => c.trim().length > 500)
-          .slice(0, 50); // Limit to 50 chapters
-        
+        // Insert chapters into database
         if (book_id && chapters.length > 0) {
-          // Store chapters in database
-          for (let i = 0; i < chapters.length; i++) {
-            const chapterContent = chapters[i].trim();
-            const wordCount = chapterContent.split(/\s+/).length;
-            
-            await supabase.from('chapters').insert({
-              book_id,
-              chapter_number: i + 1,
-              title: `Chapter ${i + 1}`,
-              content: chapterContent,
-              word_count: wordCount,
-            });
+          console.log(`Inserting ${chapters.length} chapters for book ${book_id}`);
+          
+          const chapterInserts = chapters.map(chapter => ({
+            book_id,
+            chapter_number: chapter.chapter_number,
+            title: chapter.title,
+            content: chapter.content,
+            word_count: chapter.content.split(/\s+/).length
+          }));
+          
+          const { error: chaptersError } = await supabase
+            .from('chapters')
+            .insert(chapterInserts);
+          
+          if (chaptersError) {
+            console.error('Error inserting chapters:', chaptersError);
+            throw new Error(`Failed to insert chapters: ${chaptersError.message}`);
+          }
+          
+          // Update book to mark content as available
+          const { error: updateError } = await supabase
+            .from('books')
+            .update({ content_available: true, content_source: 'gutenberg' })
+            .eq('id', book_id);
+          
+          if (updateError) {
+            console.error('Error updating book:', updateError);
           }
         }
         
         return new Response(JSON.stringify({ 
           success: true,
-          chapters_created: chapters.length 
+          chapters_created: chapters.length,
+          book_id
         }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       } catch (error) {
         console.error('Error fetching book content:', error);
-        return new Response(JSON.stringify({ error: 'Failed to fetch book content' }), {
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        return new Response(JSON.stringify({ 
+          error: 'Failed to fetch book content',
+          details: errorMessage 
+        }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+    }
+    
+    if (action === 'import_all_content') {
+      // NEW: Bulk import content for all books without content
+      console.log('Starting bulk content import...');
+      
+      try {
+        // Check import status
+        const { data: config } = await supabase
+          .from('system_config')
+          .select('config_value')
+          .eq('config_key', 'book_import_status')
+          .maybeSingle();
+        
+        if (config?.config_value === 'complete') {
+          return new Response(JSON.stringify({ 
+            success: true,
+            message: 'Import already completed',
+            imported: 0
+          }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+        
+        // Update status to in_progress
+        await supabase
+          .from('system_config')
+          .update({ config_value: 'in_progress', updated_at: new Date().toISOString() })
+          .eq('config_key', 'book_import_status');
+        
+        // Get all books without content
+        const { data: books, error: booksError } = await supabase
+          .from('books')
+          .select('id, title, gutenberg_id')
+          .eq('content_available', false)
+          .not('gutenberg_id', 'is', null)
+          .limit(50);
+        
+        if (booksError) {
+          throw new Error(`Failed to fetch books: ${booksError.message}`);
+        }
+        
+        if (!books || books.length === 0) {
+          await supabase
+            .from('system_config')
+            .update({ config_value: 'complete', updated_at: new Date().toISOString() })
+            .eq('config_key', 'book_import_status');
+          
+          return new Response(JSON.stringify({ 
+            success: true,
+            message: 'All books already have content',
+            imported: 0
+          }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+        
+        console.log(`Found ${books.length} books without content`);
+        
+        let imported = 0;
+        let failed = 0;
+        const errors: Array<{ book: string; error: string }> = [];
+        
+        for (let i = 0; i < books.length; i++) {
+          const book = books[i];
+          console.log(`[${i + 1}/${books.length}] Processing: ${book.title}`);
+          
+          // Update progress
+          await supabase
+            .from('system_config')
+            .update({ 
+              config_value: JSON.stringify({ current: i + 1, total: books.length, errors }),
+              updated_at: new Date().toISOString()
+            })
+            .eq('config_key', 'book_import_progress');
+          
+          try {
+            // Recursively call fetch_book_content action
+            const contentResponse = await fetch(req.url, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                action: 'fetch_book_content',
+                gutenberg_id: book.gutenberg_id,
+                book_id: book.id
+              })
+            });
+            
+            const contentResult = await contentResponse.json();
+            
+            if (contentResult.success) {
+              imported++;
+              console.log(`✅ [${i + 1}/${books.length}] ${book.title} - ${contentResult.chapters_created} chapters`);
+            } else {
+              failed++;
+              errors.push({ book: book.title, error: contentResult.error || 'Unknown error' });
+              console.error(`❌ [${i + 1}/${books.length}] ${book.title} - ${contentResult.error}`);
+            }
+          } catch (error: any) {
+            failed++;
+            const errorMsg = error.message || 'Unknown error';
+            errors.push({ book: book.title, error: errorMsg });
+            console.error(`❌ [${i + 1}/${books.length}] ${book.title} - ${errorMsg}`);
+          }
+          
+          // Small delay to avoid rate limiting
+          if (i < books.length - 1) {
+            await new Promise(resolve => setTimeout(resolve, 500));
+          }
+        }
+        
+        // Mark as complete
+        await supabase
+          .from('system_config')
+          .update({ config_value: 'complete', updated_at: new Date().toISOString() })
+          .eq('config_key', 'book_import_status');
+        
+        console.log(`✅ Bulk import complete! Imported: ${imported}, Failed: ${failed}`);
+        
+        return new Response(JSON.stringify({ 
+          success: true,
+          imported,
+          failed,
+          total: books.length,
+          errors
+        }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+        
+      } catch (error: any) {
+        console.error('Error in bulk import:', error);
+        
+        // Reset status to pending so it can be retried
+        await supabase
+          .from('system_config')
+          .update({ config_value: 'pending', updated_at: new Date().toISOString() })
+          .eq('config_key', 'book_import_status');
+        
+        return new Response(JSON.stringify({ 
+          error: 'Bulk import failed',
+          details: error.message 
+        }), {
           status: 500,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
@@ -384,7 +640,7 @@ serve(async (req) => {
 
     return new Response(JSON.stringify({ 
       error: 'Invalid action',
-      validActions: ['import_by_author', 'import_by_category', 'get_timeless_authors', 'fetch_book_content']
+      validActions: ['import_by_author', 'import_by_category', 'get_timeless_authors', 'fetch_book_content', 'import_all_content']
     }), {
       status: 400,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
