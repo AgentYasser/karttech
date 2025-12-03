@@ -30,6 +30,7 @@ const Privacy = lazy(() => import("./pages/Privacy"));
 const Terms = lazy(() => import("./pages/Terms"));
 const GDPR = lazy(() => import("./pages/GDPR"));
 const SetupBooks = lazy(() => import("./pages/SetupBooks"));
+const LiveReading = lazy(() => import("./pages/LiveReading"));
 
 const queryClient = new QueryClient();
 
@@ -123,6 +124,14 @@ function AppContent() {
                 element={
                   <ProtectedRoute>
                     <ExpertSessions />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/live-reading"
+                element={
+                  <ProtectedRoute>
+                    <LiveReading />
                   </ProtectedRoute>
                 }
               />

@@ -1,10 +1,11 @@
 import { Link, useLocation } from "react-router-dom";
-import { Book, Library, Mic, Users, User } from "lucide-react";
+import { Book, Library, Volume2, Mic, Users, User } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const navItems = [
   { path: "/", icon: Book, label: "Home" },
   { path: "/library", icon: Library, label: "Library" },
+  { path: "/live-reading", icon: Volume2, label: "Live Reads" },
   { path: "/audio-rooms", icon: Mic, label: "Audio" },
   { path: "/groups", icon: Users, label: "Groups" },
   { path: "/profile", icon: User, label: "Profile" },
