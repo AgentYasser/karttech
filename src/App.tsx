@@ -31,6 +31,7 @@ const Terms = lazy(() => import("./pages/Terms"));
 const GDPR = lazy(() => import("./pages/GDPR"));
 const SetupBooks = lazy(() => import("./pages/SetupBooks"));
 const LiveReading = lazy(() => import("./pages/LiveReading"));
+const BookClub = lazy(() => import("./pages/BookClub"));
 
 const queryClient = new QueryClient();
 
@@ -163,7 +164,23 @@ function AppContent() {
                 path="/audio-rooms/:roomId"
                 element={
                   <ProtectedRoute>
-                    <AudioRooms />
+                    <AudioRoom />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/book-club"
+                element={
+                  <ProtectedRoute>
+                    <BookClub />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/book-club/:roomId"
+                element={
+                  <ProtectedRoute>
+                    <BookClub />
                   </ProtectedRoute>
                 }
               />
