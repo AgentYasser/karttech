@@ -25,7 +25,8 @@ function markBooksAsImported() {
 
 /**
  * Auto-import all book content on first run
- * This ensures books are ready to read without manual intervention
+ * NON-BLOCKING - Runs in background without halting user experience
+ * Users can browse while import happens
  */
 export async function autoImportBooksOnFirstRun(): Promise<void> {
   // Skip if already imported
@@ -34,34 +35,46 @@ export async function autoImportBooksOnFirstRun(): Promise<void> {
     return;
   }
 
-  try {
-    console.log("📚 First run detected - auto-importing book content...");
-    
-    // Get books without content
-    const booksWithoutContent = await getBooksWithoutContent();
-    
-    if (booksWithoutContent.length === 0) {
-      console.log("✅ All books already have content");
+  // DON'T AWAIT - Let this run in background
+  setTimeout(async () => {
+    try {
+      console.log("📚 Starting background book import...");
+      
+      // Get books without content
+      const booksWithoutContent = await getBooksWithoutContent();
+      
+      if (booksWithoutContent.length === 0) {
+        console.log("✅ All books already have content");
+        markBooksAsImported();
+        return;
+      }
+
+      console.log(`📥 Importing ${booksWithoutContent.length} books in background...`);
+      
+      // Import all missing content (runs in background)
+      const result = await importAllMissingContent((current, total, bookTitle) => {
+        console.log(`  [${current}/${total}] Importing: ${bookTitle}`);
+        // Dispatch custom event for UI to listen to
+        window.dispatchEvent(new CustomEvent('book-import-progress', {
+          detail: { current, total, bookTitle }
+        }));
+      });
+
+      console.log(`✅ Background import complete! Imported: ${result.imported}, Failed: ${result.failed}`);
+      
+      // Mark as imported
       markBooksAsImported();
-      return;
+      
+      // Notify UI
+      window.dispatchEvent(new CustomEvent('book-import-complete', {
+        detail: { imported: result.imported, failed: result.failed }
+      }));
+      
+    } catch (error) {
+      console.error("Error during auto-import:", error);
+      // Don't mark as imported if failed - will retry next time
     }
-
-    console.log(`📥 Starting import of ${booksWithoutContent.length} books...`);
-    
-    // Import all missing content
-    const result = await importAllMissingContent((current, total, bookTitle) => {
-      console.log(`  [${current}/${total}] Importing: ${bookTitle}`);
-    });
-
-    console.log(`✅ Import complete! Imported: ${result.imported}, Failed: ${result.failed}`);
-    
-    // Mark as imported
-    markBooksAsImported();
-    
-  } catch (error) {
-    console.error("Error during auto-import:", error);
-    // Don't mark as imported if failed - will retry next time
-  }
+  }, 1000); // Start after 1 second delay (let app initialize first)
 }
 
 /**
