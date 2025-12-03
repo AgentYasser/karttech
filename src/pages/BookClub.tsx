@@ -19,7 +19,7 @@ const BookClub = () => {
   const [activeTab, setActiveTab] = useState<"browse" | "my-clubs" | "live">("browse");
   
   const { data: liveRooms, isLoading: liveLoading } = useDiscussionRooms("live");
-  const { data: allRooms, isLoading: allLoading } = useDiscussionRooms();
+  const { data: allRooms, isLoading: allLoading } = useDiscussionRooms(undefined);
 
   // If we have a roomId, show the audio discussion interface
   if (roomId) {

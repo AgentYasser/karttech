@@ -124,14 +124,16 @@ export function CreateBookClubDialog({ children }: CreateBookClubDialogProps) {
     
     // Reset and close
     setOpen(false);
-    setStep("create");
-    setBookTitle("");
-    setBookAuthor("");
-    setDescription("");
-    setScheduleDate("");
-    setScheduleTime("");
-    setMaxParticipants("20");
-    setShareableLink("");
+    setTimeout(() => {
+      setStep("create");
+      setBookTitle("");
+      setBookAuthor("");
+      setDescription("");
+      setScheduleDate("");
+      setScheduleTime("");
+      setMaxParticipants("20");
+      setShareableLink("");
+    }, 300);
   };
 
   return (
